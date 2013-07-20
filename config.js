@@ -1,10 +1,4 @@
-exports.port = 8000;
+exports.port = 4321;
 exports.upload_dir = './uploads';
-
-exports.s3 = {
-	key: '',
-	secret: '',
-	bucket: ''
-};
-
-exports.s3_enabled = false;
+exports.static_dir = './static';
+exports.db_name = './memory.db';

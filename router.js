@@ -3,17 +3,32 @@ function respondWithHTTPCode(response, code) {
 	response.end();
 }
 
+function get_dir(pathString) {
+	pathTmp = pathString.split('/');
+	pathArray = [];
+
+	pathTmp.forEach(function(dir) {
+		if (dir != '') { pathArray.push(dir); }
+	});
+
+	if (pathArray.length == 0) {
+		pathArray.push('home');
+	}
+
+	return pathArray[0];
+}
+
 function route(handle, pathname, response, postData) {
+	var result = false;
 
-	var extension = pathname.split('.').pop();
+	if ('function' === typeof handle(get_dir(pathname))) {
+		result = handle(get_dir(pathname))(response, pathname, postData);
+	}
 
-	if ('function' === typeof handle[pathname]) {
-		handle[pathname](response, postData);
-	} else if ('css' === extension || 'js' === extension) {
-		handle._static(response, pathname, postData);
-	} else {
+	if (!result) {
 		respondWithHTTPCode(response, 404);
 	}
+
 }
 
 exports.route = route;

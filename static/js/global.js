@@ -60,6 +60,11 @@
 
 				if ( jqXHR.status == 200 ) {
 					$(".file." + current_file_id + " .progress").html("Uploaded");
+			        var dataJS = jQuery.parseJSON( data );
+			        var url = String(window.location.href+'/d/'+dataJS.fileName.replace(/^\.\//,'')).replace(/([^:])\/\//,'$1/');
+			        $( "#filePathText" ).val(url);
+			        $( "#filePathHref" ).attr("href", url);
+			        $( "#dialog-message" ).dialog( "open" );
 				} else {
 					$(".file." + current_file_id + " .progress").html("Failed");
 				}
@@ -88,6 +93,20 @@
 				locked = false;
 			}
 		};
+
+		// result dialog
+		$(function() {
+		    $( "#dialog-message" ).dialog({
+		    	autoOpen: false,
+				modal: true,
+				width: 450,
+				buttons: {
+					Ok: function() {
+						$( this ).dialog( "close" );
+					}
+				}
+			});
+		});
 
 		dropzone = document.getElementById("dropzone");
 		dropzone.addEventListener("dragenter", noopHandler, false);

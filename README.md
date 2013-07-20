@@ -1,9 +1,9 @@
-Simple File Uploader
+Simple File Uploader/Downloader
 ===
 
-Simple File Uploader is a file uploader written using HTML5 and Node.js. It can upload both to a local directory on the server or to an AWS S3 server.
+Simple File Uploader/Downloader is a file uploader written using HTML5 and Node.js.
 
-Clearly, it is not a revolutionary file uploader that will change the way mankind upload their files. Seeing that many people are actually interested in both HTML5 File API and Node.js, decided to write a simple file uploader application as many of the examples out there are not clear enough for beginners. Hope this helps!
+Clearly, it is not a revolutionary file uploader that will change the way mankind upload their files. Seeing that many people are actually interested in both HTML5 File API and Node.js, this is just a modified version of mertys "Simple File Uploader" (https://github.com/merty/simple-file-uploader). Hope it's usefull for someone else than me.
 
 Usage
 ---
@@ -15,11 +15,7 @@ Usage
 5. Run the application using `node index.js`
 6. Go to `http://<IP_ADDRESS>:<PORT>` where `<IP_ADDRESS>` is the IP address of the machine where the application is running and the `<PORT>` is the port number defined in `config.js` which is `8000` by default.
 7. Drag and drop files to the marked area to upload the files to the `upload_dir` defined in `config.js`.
-
-**To use with AWS S3:**
-
-1. Install knox using `npm install knox`.
-2. Edit config.js to fill in the values for the keys `key`, `secret` and `bucket`, and replace the last line with `exports.s3_enabled = true;`.
+8. Copy the url from the dialog and send it to friends and enemies.
 
 License
 ---

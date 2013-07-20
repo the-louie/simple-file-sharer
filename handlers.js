@@ -1,73 +1,95 @@
-var config = require('./config'),
-    fs = require('fs');
+var config   = require('./config'),
+    mime     = require('mime'),
+    crypto   = require('crypto'),
+    sqlite   = require('sqlite3'),
+    fs       = require('fs'),
 
-function home(response, postData) {
-    response.writeHead(200, {'Content-Type': 'text/html'});
-    response.end(fs.readFileSync('./static/index.html'));
-}
+    db       = new sqlite.Database(config.db_name),
 
-function upload(response, postData) {
-    
-    var file                 = JSON.parse(postData),
-        fileRootName         = file.name.split('.').shift(),
-        fileExtension        = file.name.split('.').pop(),
-        filePathBase         = config.upload_dir + '/',
-        fileRootNameWithBase = filePathBase + fileRootName,
-        filePath             = fileRootNameWithBase + '.' + fileExtension,
-        fileID               = 2,
-        fileBuffer;
-    
-    while (fs.existsSync(filePath)) {
-        filePath = fileRootNameWithBase + '(' + fileID + ').' + fileExtension;
-        fileID += 1;
-    }
-    
-    file.contents = file.contents.split(',').pop();
-    
-    fileBuffer = new Buffer(file.contents, "base64");
-    
-    if (config.s3_enabled) {
-
-        var knox = require('knox'),
-            client = knox.createClient(config.s3),
-            headers = {'Content-Type': file.type};
-        
-        client.putBuffer(fileBuffer, fileRootName, headers, function (err, res) {
-            
-            if (typeof res !== "undefined" && 200 === res.statusCode) {
-                console.log('Uploaded to: %s', res.client._httpMessage.url);
-                response.statusCode = 200;
-            } else {
-                console.log('Upload failed!');
-                response.statusCode = 500;
-            }
-            
-            response.end();
-        });
-        
-    } else {
-        fs.writeFileSync(filePath, fileBuffer);
-        response.statusCode = 200;
-        response.end();
-    }
-}
-
-function serveStatic(response, pathname, postData) {
-
-    var extension = pathname.split('.').pop(),
-        extensionTypes = {
-            'css' : 'text/css',
-            'gif' : 'image/gif',
-            'jpg' : 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'js'  : 'application/javascript',
-            'png' : 'image/png'
+    handlers = {
+            'home'      : serveHome,
+            'upload'    : serveUpload,
+            'static'    : serveStatic,
+            'd'         : serveDownload
         };
-    
-    response.writeHead(200, {'Content-Type': extensionTypes[extension]});
-    response.end(fs.readFileSync('./static' + pathname));
+
+// Create table if it doesn't already exist.
+db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, md5 TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
+
+// Serve / and /home
+function serveHome(response, pathname, postData) {
+    response.writeHead(200, {'Content-Type': 'text/html'});
+    response.end(fs.readFileSync(config.static_dir+'/index.html'));
+    return true;
 }
 
-exports.home = home;
-exports.upload = upload;
-exports.serveStatic = serveStatic;
+
+// Handle uploads, save them to a file and add it to the database
+function serveUpload(response, pathname, postData) {
+    var file              = JSON.parse(postData);
+    var originalFileName  = file.name;
+    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+'53cR3t').digest("hex");
+
+    file.contents = file.contents.split(',').pop();
+    fileBuffer = new Buffer(file.contents, "base64");
+    fs.writeFileSync(config.upload_dir+'/'+fileName, fileBuffer);
+
+    stmt = db.prepare('INSERT INTO uploaded_files (fileName, md5, remote_ip) VALUES (?,?,?)');
+    stmt.run(originalFileName,fileName,0);
+    stmt.finalize()
+
+    response.write(JSON.stringify({'fileName':fileName}));
+    response.statusCode = 200;
+    response.end();
+    return true;
+
+}
+
+// Handle static files
+function serveStatic(response, pathname, postData) {
+    if(!fs.existsSync('.'+pathname)) {
+        console.log('ERROR: Unknown file.',pathname);
+        return false;
+    }
+    var mimeType = mime.lookup('.'+pathname);
+    response.writeHead(200, {'Content-Type': mimeType});
+    response.end(fs.readFileSync('.' + pathname));
+    return true;
+
+}
+
+// Handle download requests
+function serveDownload(response, pathname, postData) {
+    pathArr = pathname.split('/');
+    md5 = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
+
+    var query = "SELECT fileName FROM uploaded_files WHERE md5 = ?";
+    return db.get(query, [md5], function(err, row) {
+
+        if (null == row || null == row.fileName) {
+            console.log('ERROR: Unknown hash.',md5);
+            return false;
+        }
+
+        var fileName = config.upload_dir+'/'+md5;
+        if (!fs.existsSync(fileName)) {
+            console.log('ERROR: No such file.',fileName);
+            return false;
+        }
+
+        var realFileName = row.fileName;
+        var mimeType = mime.lookup(fileName);
+        response.writeHead(200, {'Content-Type': mimeType, 'Content-Disposition': 'attachment; filename='+realFileName});
+        response.end(fs.readFileSync(fileName));
+        return true;
+
+    });
+
+}
+
+// return the correct function based on path
+function getHandler(path) {
+    return handlers[path];
+}
+
+exports.getHandler = getHandler;
