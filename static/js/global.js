@@ -11,6 +11,7 @@
 		    locked = false,
 		    prev_count_files = 0,
 		    waiting = 0,
+		    max_file_size = 10485760,
 		    drop, dropzone, handleNextFile, handleReaderLoad, noopHandler;
 
 		noopHandler = function(evt) {
@@ -78,13 +79,24 @@
 		handleNextFile = function() {
 
 			if ( current_file_id < all_files.length ) {
-
 				locked = true;
+
+				if (all_files[current_file_id].size > max_file_size) {
+					console.log('filet too large: ',all_files[current_file_id].size);
+					$(".file." + current_file_id + " .progress").html("Too large");
+					alert('Dont be silly, no more than 10MB for this test');
+					locked = false;
+					return false;
+				}
+				console.log(current_file);
 
 				$(".file." + current_file_id + " .progress").html("Uploading...");
 
 				var current_file = all_files[current_file_id],
-				    reader = new FileReader();
+					reader = new FileReader();
+
+
+
 
 				reader.onload = handleReaderLoad;
 				reader.readAsDataURL(current_file);
