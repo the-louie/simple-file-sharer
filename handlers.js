@@ -28,7 +28,7 @@ function serveHome(response, pathname, postData) {
 function serveUpload(response, pathname, postData) {
     var file              = JSON.parse(postData);
     var originalFileName  = file.name;
-    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+'53cR3t').digest("hex");
+    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+config.secret).digest("hex");
 
     file.contents = file.contents.split(',').pop();
     fileBuffer = new Buffer(file.contents, "base64");
