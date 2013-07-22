@@ -17,7 +17,7 @@ var config   = require('./config'),
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
 
 // Serve / and /home
-function serveHome(response, pathname, postData) {
+function serveHome(response, pathname, postData, request) {
     response.writeHead(200, {'Content-Type': 'text/html'});
     response.end(fs.readFileSync(config.static_dir+'/index.html'));
     return true;
@@ -25,17 +25,18 @@ function serveHome(response, pathname, postData) {
 
 
 // Handle uploads, save them to a file and add it to the database
-function serveUpload(response, pathname, postData) {
+function serveUpload(response, pathname, postData, request) {
     var file              = JSON.parse(postData);
     var originalFileName  = file.name;
-    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+config.secret).digest("hex");
+    var remoteAddress     = request.connection.remoteAddress;
+    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+config.secret+remoteAddress).digest("hex");
 
     file.contents = file.contents.split(',').pop();
     fileBuffer = new Buffer(file.contents, "base64");
     fs.writeFileSync(config.upload_dir+'/'+fileName, fileBuffer);
 
     stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, remote_ip) VALUES (?,?,?)');
-    stmt.run(originalFileName,fileName,0);
+    stmt.run(originalFileName,fileName,remoteAddress);
     stmt.finalize()
 
     response.write(JSON.stringify({'fileName':fileName}));
@@ -46,7 +47,7 @@ function serveUpload(response, pathname, postData) {
 }
 
 // Handle static files
-function serveStatic(response, pathname, postData) {
+function serveStatic(response, pathname, postData, request) {
     if(!fs.existsSync('.'+pathname)) {
         console.log('ERROR: Unknown file.',pathname);
         return false;
@@ -59,7 +60,7 @@ function serveStatic(response, pathname, postData) {
 }
 
 // Handle download requests
-function serveDownload(response, pathname, postData) {
+function serveDownload(response, pathname, postData, request) {
     pathArr = pathname.split('/');
     sha = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
 

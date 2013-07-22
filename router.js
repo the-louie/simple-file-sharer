@@ -18,11 +18,11 @@ function get_dir(pathString) {
 	return pathArray[0];
 }
 
-function route(handle, pathname, response, postData) {
+function route(handle, pathname, response, postData, request) {
 	var result = false;
 
 	if ('function' === typeof handle(get_dir(pathname))) {
-		result = handle(get_dir(pathname))(response, pathname, postData);
+		result = handle(get_dir(pathname))(response, pathname, postData, request);
 	}
 
 	if (!result) {
