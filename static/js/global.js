@@ -3,6 +3,7 @@
 	"use strict";
 
 	var document = window.document;
+	var debug = false;
 
 	$(document).ready(function() {
 
@@ -36,7 +37,7 @@
 				}
 
 				for ( i = prev_count_files + waiting, j = 0; i < prev_count_files + files.length + waiting; i++, j++ ) {
-					$("#dropzone").append('<div class="file ' + i + '"><div class="name">' + files[j].name + '</div><div class="progress">Waiting...</div></div>');
+					$("#dropzone").append('<div class="file ' + i + '"><div class="name">' + files[j].name + '</div><div class="progress"><input id="result" type="text" value="Waiting..." /></div></div>');
 				}
 
 				waiting += count;
@@ -60,14 +61,13 @@
 			$.post('/upload', JSON.stringify(current_file), function(data, textStatus, jqXHR) {
 
 				if ( jqXHR.status == 200 ) {
-					$(".file." + current_file_id + " .progress").html("Uploaded");
 			        var dataJS = jQuery.parseJSON( data );
 			        var url = String(window.location.href+'/d/'+dataJS.fileName.replace(/^\.\//,'')).replace(/([^:])\/\//,'$1/');
-			        $( "#filePathText" ).val(url);
-			        $( "#filePathHref" ).attr("href", url);
-			        $( "#dialog-message" ).dialog( "open" );
+					if(debug){console.log('File uploaded: ', data, url);}
+					$(".file." + current_file_id + " .progress input").val(url);
+					$(".file." + current_file_id + " .name").html("<a href='"+url+"'>"+ $(".file." + current_file_id + " .name").html() +"</a>");
 				} else {
-					$(".file." + current_file_id + " .progress").html("Failed");
+					$(".file." + current_file_id + " .progress").val("File upload failed!");
 				}
 
 				all_files[current_file_id] = 1;
@@ -77,26 +77,23 @@
 		};
 
 		handleNextFile = function() {
+	        if(debug) { console.log("Handling file id:",current_file_id); }
 
 			if ( current_file_id < all_files.length ) {
 				locked = true;
 
 				if (all_files[current_file_id].size > max_file_size) {
-					console.log('filet too large: ',all_files[current_file_id].size);
-					$(".file." + current_file_id + " .progress").html("Too large");
-					alert('Dont be silly, no more than 10MB for this test');
+					if(debug){console.log('filet too large: ',all_files[current_file_id].size);}
+					$(".file." + current_file_id + " .progress input").val('File too large ('+(all_files[current_file_id].size / (1024*1024)).toFixed(0)+' MB), max size '+(max_file_size/ (1024*1024)).toFixed(0)+' MB');
 					locked = false;
 					return false;
 				}
-				console.log(current_file);
+				if(debug){console.log("handling file: ",all_files[current_file_id]);}
 
-				$(".file." + current_file_id + " .progress").html("Uploading...");
+				$(".file." + current_file_id + " .progress input").val('Uploading...');
 
 				var current_file = all_files[current_file_id],
 					reader = new FileReader();
-
-
-
 
 				reader.onload = handleReaderLoad;
 				reader.readAsDataURL(current_file);
@@ -105,20 +102,6 @@
 				locked = false;
 			}
 		};
-
-		// result dialog
-		$(function() {
-		    $( "#dialog-message" ).dialog({
-		    	autoOpen: false,
-				modal: true,
-				width: 450,
-				buttons: {
-					Ok: function() {
-						$( this ).dialog( "close" );
-					}
-				}
-			});
-		});
 
 		dropzone = document.getElementById("dropzone");
 		dropzone.addEventListener("dragenter", noopHandler, false);

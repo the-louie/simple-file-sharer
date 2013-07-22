@@ -1,14 +1,12 @@
 body {
 	background-color: #f7f7f7;
 	margin: 50px auto 0 auto;
-	width: 800px;
+	width: 900px;
 }
 
 #dropzoneWrap {
 	background-color: #fff;
 	border: 5px solid #f1f1f1;
-	padding-bottom: 20px;
-	padding-top: 20px;
 }
 
 #dropzone {
@@ -19,10 +17,10 @@ body {
 	font-size: 2em;
 	height: 500px;
 	margin: auto;
-	overflow: scroll;
+	overflow: auto;
 	overflow-x: hidden;
 	text-align: center;
-	width: 750px;
+	width: 880px;
 }
 
 #dropzoneLabel {
@@ -41,21 +39,23 @@ body {
 	filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0,StartColorStr='#f5f5f5', EndColorStr='#e5e5e5');
 	color: #909090;
 	font-size: 14px;
-	height: 20px;
+	height: 45px;
 	line-height: 20px;
-	padding: 20px;
+	padding: 10px;
 	text-align: left;
-	width: 710px;
+	width: 880px;
 }
 
 #dropzone .file .name {
-	float: left;
-	width: 90%;
+	width: 100%;
 }
 
 #dropzone .file .progress {
-	float: right;
-	width: 10%;
+	width: 100%;
+}
+
+#dropzone .file .progress input {
+	width: 95%;
 }
 
 #footer {
