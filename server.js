@@ -20,7 +20,7 @@ function start(route, handle) {
 		});
 	}
 
-	http.createServer(onRequest).listen(config.port);
+	http.createServer(onRequest).listen(config.port, config.ip);
 }
 
 exports.start = start;

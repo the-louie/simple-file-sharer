@@ -1,3 +1,4 @@
+exports.ip = 'localhost';
 exports.port = 4321;
 exports.upload_dir = './uploads';
 exports.static_dir = './static';
