@@ -14,7 +14,7 @@ var config   = require('./config'),
         };
 
 // Create table if it doesn't already exist.
-db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, md5 TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
+db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
 
 // Serve / and /home
 function serveHome(response, pathname, postData) {
@@ -34,7 +34,7 @@ function serveUpload(response, pathname, postData) {
     fileBuffer = new Buffer(file.contents, "base64");
     fs.writeFileSync(config.upload_dir+'/'+fileName, fileBuffer);
 
-    stmt = db.prepare('INSERT INTO uploaded_files (fileName, md5, remote_ip) VALUES (?,?,?)');
+    stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, remote_ip) VALUES (?,?,?)');
     stmt.run(originalFileName,fileName,0);
     stmt.finalize()
 
@@ -61,17 +61,17 @@ function serveStatic(response, pathname, postData) {
 // Handle download requests
 function serveDownload(response, pathname, postData) {
     pathArr = pathname.split('/');
-    md5 = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
+    sha = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
 
-    var query = "SELECT fileName FROM uploaded_files WHERE md5 = ?";
-    return db.get(query, [md5], function(err, row) {
+    var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
+    return db.get(query, [sha], function(err, row) {
 
         if (null == row || null == row.fileName) {
-            console.log('ERROR: Unknown hash.',md5);
+            console.log('ERROR: Unknown hash.',sha);
             return false;
         }
 
-        var fileName = config.upload_dir+'/'+md5;
+        var fileName = config.upload_dir+'/'+sha;
         if (!fs.existsSync(fileName)) {
             console.log('ERROR: No such file.',fileName);
             return false;
