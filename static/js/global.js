@@ -37,7 +37,7 @@
 				}
 
 				for ( i = prev_count_files + waiting, j = 0; i < prev_count_files + files.length + waiting; i++, j++ ) {
-					$("#dropzone").append('<div class="file ' + i + '"><div class="name">' + files[j].name + '</div><div class="progress"><input id="result" type="text" value="Waiting..." /></div></div>');
+					$("#dropzone").append('<div class="file ' + i + '"><div class="name">' + files[j].name + '</div><div class="progress"><input id="result" type="text" value="Waiting..." disabled /></div></div>');
 				}
 
 				waiting += count;
@@ -66,7 +66,7 @@
 					if(debug){console.log('File uploaded: ', data, url);}
 					$(".file." + current_file_id + " .progress input").val(url);
 					$(".file." + current_file_id + " .name").html("<a href='"+url+"'>"+ $(".file." + current_file_id + " .name").html() +"</a>");
-				} else {
+					if ($(".file." + current_file_id + " .progress input")) { $(".file." + current_file_id + " .progress input").removeAttr('disabled'); }
 					$(".file." + current_file_id + " .progress").val("File upload failed!");
 				}
 
@@ -86,6 +86,9 @@
 					if(debug){console.log('filet too large: ',all_files[current_file_id].size);}
 					$(".file." + current_file_id + " .progress input").val('File too large ('+(all_files[current_file_id].size / (1024*1024)).toFixed(0)+' MB), max size '+(max_file_size/ (1024*1024)).toFixed(0)+' MB');
 					locked = false;
+					all_files[current_file_id] = 1;
+					current_file_id++;
+					handleNextFile();
 					return false;
 				}
 				if(debug){console.log("handling file: ",all_files[current_file_id]);}
