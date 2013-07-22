@@ -1,17 +1,16 @@
 body {
-	background-color: #f7f7f7;
+	background-color: #e7e7e7;
 	margin: 50px auto 0 auto;
 	width: 900px;
 }
 
 #dropzoneWrap {
 	background-color: #fff;
-	border: 5px solid #f1f1f1;
 }
 
 #dropzone {
-	background-color: #f7f7f7;
-	border: 5px dashed #e7e7e7;
+	background-color: #fff;
+	border: 5px dashed #d7d7d7;
 	color: #e0e0e0;
 	font-family: Arial, sans-serif;
 	font-size: 2em;
@@ -20,7 +19,7 @@ body {
 	overflow: auto;
 	overflow-x: hidden;
 	text-align: center;
-	width: 880px;
+	width: 890px;
 }
 
 #dropzoneLabel {
