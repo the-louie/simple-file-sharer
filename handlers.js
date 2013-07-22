@@ -10,6 +10,7 @@ var config   = require('./config'),
             'home'      : serveHome,
             'upload'    : serveUpload,
             'static'    : serveStatic,
+            'favicon.ico': serveFavicon,
             'd'         : serveDownload
         };
 
@@ -23,6 +24,12 @@ function serveHome(response, pathname, postData, request) {
     return true;
 }
 
+// Serve favicon.ico
+function serveFavicon(response, pathname, postData, request) {
+    response.writeHead(200, {'Content-Type': 'image/x-icon'});
+    response.end(fs.readFileSync(config.static_dir+'/favicon.ico'));
+    return true;
+}
 
 // Handle uploads, save them to a file and add it to the database
 function serveUpload(response, pathname, postData, request) {
