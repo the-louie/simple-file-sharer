@@ -5,7 +5,6 @@ var config = require('./config'),
 function start(route, handle) {
 
 	function onRequest(request, response) {
-
 		var pathname = url.parse(request.url).pathname,
 			postData = '';
 
@@ -21,6 +20,7 @@ function start(route, handle) {
 	}
 
 	http.createServer(onRequest).listen(config.port, config.ip);
+	console.log('Listening on '+config.ip+':'+config.port);
 }
 
 exports.start = start;

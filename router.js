@@ -22,10 +22,12 @@ function route(handle, pathname, response, postData, request) {
 	var result = false;
 
 	if ('function' === typeof handle(get_dir(pathname))) {
+		console.log('Handling request for', pathname, 'from', request.connection.remoteAddress);
 		result = handle(get_dir(pathname))(response, pathname, postData, request);
 	}
 
 	if (!result) {
+		console.log('ERROR: request failed. ', pathname);
 		respondWithHTTPCode(response, 404);
 	}
 
