@@ -4,8 +4,8 @@ function respondWithHTTPCode(response, code) {
 }
 
 function get_dir(pathString) {
-	pathTmp = pathString.split('/');
-	pathArray = [];
+	var pathTmp = pathString.split('/');
+	var pathArray = [];
 
 	pathTmp.forEach(function(dir) {
 		if (dir != '') { pathArray.push(dir); }

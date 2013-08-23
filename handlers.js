@@ -36,14 +36,15 @@ function serveUpload(response, pathname, postData, request) {
     var file              = JSON.parse(postData);
     var originalFileName  = file.name;
     var remoteAddress     = request.connection.remoteAddress;
-    var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+config.secret+remoteAddress).digest("hex");
+    var fileName          = crypto.createHash('sha256').update(file.name + (new Date().getTime()) + config.secret + remoteAddress).digest("hex");
+
     file.contents = file.contents.split(',').pop();
-    fileBuffer = new Buffer(file.contents, "base64");
+    var fileBuffer = new Buffer(file.contents, "base64");
     fs.writeFileSync(config.upload_dir+'/'+fileName, fileBuffer);
 
-    stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, remote_ip) VALUES (?,?,?)');
-    stmt.run(originalFileName,fileName,remoteAddress);
-    stmt.finalize()
+    var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, remote_ip) VALUES (?,?,?)');
+    stmt.run(originalFileName, fileName, remoteAddress);
+    stmt.finalize();
 
     response.write(JSON.stringify({'fileName':fileName}));
     response.statusCode = 200;
