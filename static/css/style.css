@@ -37,7 +37,7 @@ body {
 	background-image: linear-gradient(top, rgb(245, 245, 245), rgb(229, 229, 229));
 	filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0,StartColorStr='#f5f5f5', EndColorStr='#e5e5e5');
 	color: #909090;
-	font-size: 14px;
+	font-size: 12px;
 	height: 45px;
 	line-height: 20px;
 	padding: 10px;
