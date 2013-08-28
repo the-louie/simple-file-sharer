@@ -11,15 +11,14 @@ var debug = true;
 	$(document).ready(function() {
 
 		var all_files = [],
-			current_file_id = 0,
-			locked = false,
-			prev_count_files = 0,
-			waiting = 0,
-			max_file_size = 10485760,
-			dropzone = null,
-			files = [];
+		    current_file_id = 0,
+		    locked = false,
+		    prev_count_files = 0,
+		    waiting = 0,
+		    max_file_size = 10485760,
+		    drop, dropzone, handleNextFile, handleReaderLoad, noopHandler;
 
-		function noopHandler(evt) {
+		noopHandler = function(evt) {
 			evt.stopPropagation();
 			evt.preventDefault();
 		};
@@ -103,8 +102,26 @@ var debug = true;
 			current_file.type = all_files[current_file_id].type;
 			current_file.contents = evt.target.result;
 
+<<<<<<< HEAD
 			$.post('/upload', JSON.stringify(current_file), function(data,textStatus,jqXHR) {
 				uploadFinish(data, textStatus, jqXHR, current_file_id);
+=======
+			$.post('/upload', JSON.stringify(current_file), function(data, textStatus, jqXHR) {
+
+				if ( jqXHR.status == 200 ) {
+			        var dataJS = jQuery.parseJSON( data );
+			        var url = String(window.location.href + '/' + dataJS.fileName.replace(/^\.\//,'')).replace(/([^:])\/\//,'$1/');
+					if(debug){console.log('File uploaded: ', data, url);}
+					$(".file." + current_file_id + " .progress input").val(url);
+					$(".file." + current_file_id + " .name").html("<a href='"+url+"'>"+ $(".file." + current_file_id + " .name").html() +"</a>");
+					if ($(".file." + current_file_id + " .progress input")) { $(".file." + current_file_id + " .progress input").removeAttr('disabled'); }
+					$(".file." + current_file_id + " .progress").val("File upload failed!");
+
+                    var $grouped = $('#urlgroup');
+                    $grouped.val($grouped.val() + url + '\n');
+				}
+
+>>>>>>> c618db8... urls are now grouped
 				all_files[current_file_id] = 1;
 				current_file_id++;
 				handleNextFile();
@@ -118,8 +135,13 @@ var debug = true;
 				locked = true;
 
 				if (all_files[current_file_id].size > max_file_size) {
+<<<<<<< HEAD
 					if(debug){console.log('filet too large: ',all_files[current_file_id].size);}
 					$(".file." + current_file_id + " .progress .resulttextbox").val('File too large ('+(all_files[current_file_id].size / (1024*1024)).toFixed(0)+' MB), max size '+(max_file_size/ (1024*1024)).toFixed(0)+' MB');
+=======
+					if(debug){console.log('files too large: ',all_files[current_file_id].size);}
+					$(".file." + current_file_id + " .progress input").val('File too large ('+(all_files[current_file_id].size / (1024*1024)).toFixed(0)+' MB), max size '+(max_file_size/ (1024*1024)).toFixed(0)+' MB');
+>>>>>>> c618db8... urls are now grouped
 					locked = false;
 					all_files[current_file_id] = 1;
 					current_file_id++;
