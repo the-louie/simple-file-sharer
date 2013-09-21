@@ -85,9 +85,15 @@ function serveDownload(response, pathname, postData, request) {
             return false;
         }
 
+        var header = {};
         var realFileName = row.fileName;
-        var mimeType = mime.lookup(fileName);
-        response.writeHead(200, {'Content-Type': mimeType, 'Content-Disposition': 'attachment; filename='+realFileName});
+
+        var mimeType = mime.lookup(realFileName);
+        if (mimeType.split('/')[0] != 'image')
+            header['Content-Disposition'] = 'attachment; filename='+realFileName;
+
+        header['Content-Type'] = mimeType;
+        response.writeHead(200, header);
         response.end(fs.readFileSync(fileName));
         return true;
 
