@@ -7,11 +7,11 @@ var config   = require('./config'),
     db       = new sqlite.Database(config.db_name),
 
     handlers = {
-            'home'      : serveHome,
-            'upload'    : serveUpload,
-            'static'    : serveStatic,
+            'home'       : serveHome,
+            'upload'     : serveUpload,
+            'static'     : serveStatic,
             'favicon.ico': serveFavicon,
-            'd'         : serveDownload
+            'd'          : serveDownload
         };
 
 // Create table if it doesn't already exist.
@@ -37,7 +37,6 @@ function serveUpload(response, pathname, postData, request) {
     var originalFileName  = file.name;
     var remoteAddress     = request.connection.remoteAddress;
     var fileName          = crypto.createHash('sha256').update(file.name+(new Date().getTime())+config.secret+remoteAddress).digest("hex");
-
     file.contents = file.contents.split(',').pop();
     fileBuffer = new Buffer(file.contents, "base64");
     fs.writeFileSync(config.upload_dir+'/'+fileName, fileBuffer);

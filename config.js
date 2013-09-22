@@ -1,5 +1,5 @@
-exports.ip = '0.0.0.0';
-exports.port = 80;
+exports.ip = 'localhost';
+exports.port = 9898;
 exports.upload_dir = './uploads';
 exports.static_dir = './static';
 exports.db_name = './memory.db';
