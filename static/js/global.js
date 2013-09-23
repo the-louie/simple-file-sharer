@@ -1,4 +1,4 @@
-var debug = false;
+var debug = true;
 
 
 
@@ -16,6 +16,7 @@ var debug = false;
 			prev_count_files = 0,
 			waiting = 0,
 			max_file_size = 10485760,
+			dropzone = null,
 			files = [];
 
 		function noopHandler(evt) {
