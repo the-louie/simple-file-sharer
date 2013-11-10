@@ -42,11 +42,11 @@ body {
 	line-height: 20px;
 	padding: 10px;
 	text-align: left;
-	width: 880px;
+	width: 890px;
 }
 
 #dropzone .file .name {
-	width: 100%;
+	width: 800px;
 }
 
 #dropzone .file .progress {
