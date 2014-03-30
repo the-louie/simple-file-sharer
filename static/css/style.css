@@ -120,14 +120,3 @@ body {
 .button:active:before {
 	background: #909090: //-webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
 }
-
-#urlgroup {
-	background: #969696;
-	position: absolute;
-	color: #FFF;
-	width: 500px;
-	height: 20%;
-	bottom: 0;
-	left: 50%;
-	margin-left: -250px;
-}
