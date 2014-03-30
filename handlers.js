@@ -7,12 +7,12 @@ var config   = require('./config'),
     db       = new sqlite.Database(config.db_name),
 
     handlers = {
-            'home'       : serveHome,
-            'upload'     : serveUpload,
-            'static'     : serveStatic,
-            'favicon.ico': serveFavicon,
-            'd'          : serveDownload
-        };
+        'home'       : serveHome,
+        'upload'     : serveUpload,
+        'static'     : serveStatic,
+        'favicon.ico': serveFavicon,
+        'd'          : serveDownload
+    };
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
@@ -33,6 +33,8 @@ function serveFavicon(response, pathname, postData, request) {
 
 // Handle uploads, save them to a file and add it to the database
 function serveUpload(response, pathname, postData, request) {
+    if(!postData) { return false; }
+
     var file              = JSON.parse(postData);
     var originalFileName  = file.name;
     var remoteAddress     = request.connection.remoteAddress;
@@ -56,7 +58,7 @@ function serveUpload(response, pathname, postData, request) {
 // Handle static files
 function serveStatic(response, pathname, postData, request) {
     if(!fs.existsSync('.'+pathname)) {
-        console.log('ERROR: Unknown file.',pathname);
+        console.log('ERROR: Unknown file.', pathname);
         return false;
     }
     var mimeType = mime.lookup('.'+pathname);
@@ -68,8 +70,8 @@ function serveStatic(response, pathname, postData, request) {
 
 // Handle download requests
 function serveDownload(response, pathname, postData, request) {
-    pathArr = pathname.split('/');
-    sha = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
+    var pathArr = pathname.split('/');
+    var sha = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
 
     var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
     return db.get(query, [sha], function(err, row) {
