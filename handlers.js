@@ -74,16 +74,16 @@ function serveDownload(response, pathname, postData, request) {
     var sha = pathArr[pathArr.length-1].replace(/[^a-f0-9]/g,'');
 
     var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
-    return db.get(query, [sha], function(err, row) {
+    db.get(query, [sha], function(err, row) {
 
         if (null == row || null == row.fileName) {
-            console.log('ERROR: Unknown hash.',sha);
+            console.log('ERROR: Unknown hash.', sha);
             return false;
         }
 
         var fileName = config.upload_dir+'/'+sha;
         if (!fs.existsSync(fileName)) {
-            console.log('ERROR: No such file.',fileName);
+            console.log('ERROR: No such file.', fileName);
             return false;
         }
 
@@ -92,7 +92,7 @@ function serveDownload(response, pathname, postData, request) {
 
         var mimeType = mime.lookup(realFileName);
         if (mimeType.split('/')[0] != 'image')
-            header['Content-Disposition'] = 'attachment; filename='+realFileName;
+            header['Content-Disposition'] = 'attachment; filename=' + realFileName;
 
         header['Content-Type'] = mimeType;
         response.writeHead(200, header);
