@@ -27,7 +27,8 @@ function route(handle, pathname, response, postData, request) {
 	}
 
 	if (!result) {
-		console.log('ERROR: request failed. ', pathname);
+		console.log(result);
+		console.error('ERROR: request failed. ', pathname);
 		//respondWithHTTPCode(response, 404);
 		response.writeHead(302, {
 		  'Location': '/'

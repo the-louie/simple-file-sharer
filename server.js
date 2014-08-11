@@ -8,7 +8,7 @@ function start(route, handle) {
 		var pathname = url.parse(request.url).pathname,
 			postData = '';
 
-		request.setEncoding('utf8');
+		request.setEncoding('binary');
 
 		request.addListener('data', function (postDataChunk) {
 			postData += postDataChunk;
