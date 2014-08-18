@@ -9,8 +9,8 @@ body {
 }
 
 #dropzone {
-	background-color: #fff;
-	border: 5px dashed #d7d7d7;
+	background-color: #fafffa;
+	border: 3px dashed #bdb;
 	color: #8c8;
 	font-family: Arial, sans-serif;
 	font-size: 2em;
@@ -19,7 +19,7 @@ body {
 	overflow: auto;
 	overflow-x: hidden;
 	text-align: center;
-	width: 890px;
+	width: 894px;
 }
 
 #dropzoneLabel {
