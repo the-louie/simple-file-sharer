@@ -19,6 +19,7 @@ var config   = require('./config'),
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
+db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);")
 
 // Serve / and /home
 function serveHome(response, pathname, postData, request) {
@@ -96,8 +97,6 @@ function serveUploadMerge(response, pathname, postData, request) {
                                 remoteAddress
                             ).digest("hex");
 
-    console.log("Merging", fileName, "//", originalFileName);
-
     var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
     var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
     var file_list = [];
@@ -140,7 +139,7 @@ function serveUploadMerge(response, pathname, postData, request) {
 // Handle static files
 function serveStatic(response, pathname, postData, request) {
     if(!fs.existsSync('.'+pathname)) {
-        console.log('ERROR: Unknown file.', pathname);
+        console.error('ERROR: Unknown file.', pathname);
         return false;
     }
     var mimeType = mime.lookup('.'+pathname);
@@ -157,7 +156,6 @@ function serveDownload(response, pathname, postData, request) {
 
     var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
     db.get(query, [sha], function(err, row) {
-        console.log(row);
         if (null == row || null == row.fileName) {
             console.error('ERROR: Unknown hash.', sha);
             return false;

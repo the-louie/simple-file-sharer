@@ -1,0 +1,29 @@
+{
+  "name": "simple-file-sharer",
+  "version": "0.2.1",
+  "description": "Simple file sharer",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "mime": "~1.2.11",
+    "qs": "~1.2.1",
+    "sqlite3": "~2.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/the-louie/simple-file-sharer.git"
+  },
+  "author": "the-louie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/the-louie/simple-file-sharer/issues"
+  },
+  "homepage": "https://github.com/the-louie/simple-file-sharer"
+}

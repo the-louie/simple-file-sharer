@@ -1,4 +1,5 @@
 node_modules/*
 uploads/*
-!uploads/.placeholder
+!.placeholder
+!.placeholder
 .DS_Store

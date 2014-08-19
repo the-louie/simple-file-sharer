@@ -91,8 +91,6 @@ var debug = true;
     Improved version with chunked uploading for large files
     */
     function handleNextFile() {
-      console.log("Handling file id:",current_file_id);
-
       if (current_file_id >= all_files.length) {
         locked = false;
       } else {
