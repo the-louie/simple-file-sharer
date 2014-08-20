@@ -14,11 +14,12 @@ var config   = require('./config'),
         'merge'      : serveUploadMerge,
         'static'     : serveStatic,
         'favicon.ico': serveFavicon,
-        'd'          : serveDownload
+        'd'          : serveDownload,
+        'c'          : serveCollection
     };
 
 // Create table if it doesn't already exist.
-db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), remote_ip INTEGER)");
+db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);")
 
 // Serve / and /home
@@ -85,9 +86,10 @@ function serveUploadMerge(response, pathname, postData, request) {
     if(!queryVars.name) { console.error("serveUploadChunks: name failed"); response.statusCode = 442; response.end(); return false; }
     if(!queryVars.uuid) { console.error("serveUploadChunks: uuid failed"); response.statusCode = 443; response.end(); return false; }
     if(!queryVars.chunkCount) { console.error("serveUploadChunks: queryVars.chunkCount failed"); response.statusCode = 444; response.end(); return false; }
+    if(!queryVars.collectionID) { console.error("serveUploadChunks: queryVars.collectionID failed"); response.statusCode = 445; response.end(); return false; }
 
     var uuid              = queryVars.uuid;
-    var chunk_count       = queryVars.chunkCount;
+    var collectionID      = queryVars.collectionID;
     var originalFileName  = queryVars.name;
 
     var fileName          = crypto.createHash('sha256').update(
@@ -99,7 +101,8 @@ function serveUploadMerge(response, pathname, postData, request) {
 
     var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
     var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
-    var file_list = [];
+    var fileList = [];
+    var fileSize = 0;
     db.all(query, [uuid], function(err, rows) {
         for (r in rows) {
             row = rows[r];
@@ -107,13 +110,12 @@ function serveUploadMerge(response, pathname, postData, request) {
 
             chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
             result_file.write(chunkData);
-
-
-            file_list.push(config.upload_dir+'/pending/'+chunkFileName)
+            fileSize += chunkData.length;
+            fileList.push(config.upload_dir+'/pending/'+chunkFileName);
         }
         result_file.end(function() {
-            for (i in file_list) {
-                thisFile = file_list[i];
+            for (i in fileList) {
+                thisFile = fileList[i];
                 fs.unlink(thisFile, function (err) {
                     if (err) throw err;
                 });
@@ -124,8 +126,8 @@ function serveUploadMerge(response, pathname, postData, request) {
         stmt.run(uuid);
         stmt.finalize();
 
-        var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, remote_ip) VALUES (?,?,?)');
-        stmt.run(originalFileName, fileName, remoteAddress);
+        var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
+        stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress);
         stmt.finalize();
 
         response.write(JSON.stringify({'fileName':fileName}));
@@ -181,8 +183,26 @@ function serveDownload(response, pathname, postData, request) {
     });
 
     return true;
-
 }
+
+function serveCollection(response, pathname, postData, request) {
+    var collectionID = pathname.replace('/c/','');
+    var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
+    db.all(query, [collectionID], function(err, rows) {
+        if(rows) {
+            files = [];
+            for (r in rows) {
+                row = rows[r];
+                files.push({fileName:row.fileName,sha:row.sha,fileSize:row.fileSize});
+            }
+            response.writeHead(200, "text/html");
+            response.end(JSON.stringify(files));
+        }
+    });
+
+    return true;
+}
+
 
 // return the correct function based on path
 function getHandler(path) {

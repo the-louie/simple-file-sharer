@@ -35,6 +35,17 @@ body {
 	width: 890px;
 }
 
+#dropzone .collection {
+	background-color: #AAD;
+	color: #909090;
+	font-size: 12px;
+	height: 45px;
+	line-height: 20px;
+	padding: 10px;
+	text-align: left;
+	width: 890px;
+}
+
 #dropzone .file .progressbar {
 	width: 0%;
 	height: 100%;

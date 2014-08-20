@@ -1,35 +1,68 @@
 var debug = true;
 
+var guid = (function () {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000)
+               .toString(16)
+               .substring(1);
+  }
+  return function () {
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+           s4() + '-' + s4() + s4() + s4();
+  };
+})();
+
+function getUrlVars() {
+    var vars = {};
+    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+        vars[key] = value;
+    });
+    return vars;
+}
+
+function humanFileSize(bytes, si) {
+    var thresh = si ? 1000 : 1024;
+    if(bytes < thresh) return bytes + ' B';
+    var units = si ? ['kB','MB','GB','TB','PB','EB','ZB','YB'] : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var u = -1;
+    do {
+        bytes /= thresh;
+        ++u;
+    } while(bytes >= thresh);
+    return bytes.toFixed(1)+' '+units[u];
+};
+
 (function ($, window) {
 
-  "use strict";
+  //"use strict";
 
   var document = window.document;
 
   $(document).ready(function () {
 
-    var all_files = [],
-      current_file_id = 0,
+    var allFiles = [],
+      currentFileID = 0,
       locked = false,
-      prev_count_files = 0,
+      prevCountFiles = 0,
       waiting = 0,
-      max_file_size = 10485760,
-      noopHandler,
+      uuid = guid(),
+      uuidurl = String(window.location.origin+'/?c='+uuid),
       dropzone;
 
-    noopHandler = function (evt) {
+    var noopHandler = function (evt) {
       evt.stopPropagation();
       evt.preventDefault();
     };
 
+
     function handleNewFiles(files) {
       var count = files.length;
       if (count > 0) {
-        prev_count_files = all_files.length;
-        if ($("#dropzoneLabel").length !== 0) { $("#dropzone").html(''); }
+        prevCountFiles = allFiles.length;
+        //if ($("#dropzoneLabel").length !== 0) { $("#dropzone").html(''); }
 
-        for (var i = prev_count_files + waiting, j = 0;
-            i < prev_count_files + files.length + waiting;
+        for (var i = prevCountFiles + waiting, j = 0;
+            i < prevCountFiles + files.length + waiting;
             i++, j++ ) {
           $("#dropzone").append(
             '<div class="file ' + i + '" style="position:relative">' +
@@ -47,27 +80,29 @@ var debug = true;
         waiting += count;
         if (!locked) {
           waiting -= count;
-          all_files.push.apply(all_files, files);
+          allFiles.push.apply(allFiles, files);
           handleNextFile();
         }
       }
     }
 
-    function uploadFinish(fileName, current_file_id) {
-        var url = String(window.location.href+'/d/'+fileName.replace(/^\.\//,'')).replace(/([^:])\/\//,'$1/');
+    // change the apperance of the bar when the file upload is successful
+    function uploadFinish(fileName, currentFileID) {
+        //var url = String(window.location.href+'/d/'+fileName.replace(/^\.\//,'')).replace(/([^:])\/\//,'$1/');
+        var url = String(window.location.origin+'/d/'+fileName);
 
-        $(".file." + current_file_id).css('background-color', '#ADA');
-        $(".file." + current_file_id + " .progress .resulttextbox").val(url);
-        $(".file." + current_file_id + " .name").html("<a href='"+url+"'>"+ $(".file." + current_file_id + " .name").html() +"</a>");
-        $(".file." + current_file_id + " .progress input").removeAttr('disabled');
-        $(".file." + current_file_id + " .progress .resultcopy").val('copy')
-        $(".file." + current_file_id + " .progress .resultcopy").removeAttr('disabled');
-        $(".file." + current_file_id + " .progress .resultcopy").zclip({
+        $(".file." + currentFileID).css('background-color', '#ADA');
+        $(".file." + currentFileID + " .progress .resulttextbox").val(url);
+        $(".file." + currentFileID + " .name").html("<a href='"+url+"'>"+ $(".file." + currentFileID + " .name").html() +"</a>");
+        $(".file." + currentFileID + " .progress input").removeAttr('disabled');
+        $(".file." + currentFileID + " .progress .resultcopy").val('copy')
+        $(".file." + currentFileID + " .progress .resultcopy").removeAttr('disabled');
+        $(".file." + currentFileID + " .progress .resultcopy").zclip({
           path:'/static/js/ZeroClipboard.swf',
           copy:function(){return url;},
           afterCopy: function(){
-            $(".file." + current_file_id + " .progress .resultcopy").attr("disabled", "disabled");
-            $(".file." + current_file_id + " .progress .resultcopy").val('copied')
+            $(".file." + currentFileID + " .progress .resultcopy").attr("disabled", "disabled");
+            $(".file." + currentFileID + " .progress .resultcopy").val('copied')
             return true;
           }
         });
@@ -82,6 +117,8 @@ var debug = true;
       handleNewFiles(evt.target.files)
     });
 
+    // this code handles people who drop the files instead
+    // or using the button
     function drop(evt) {
       noopHandler(evt);
       handleNewFiles(evt.dataTransfer.files);
@@ -91,52 +128,117 @@ var debug = true;
     Improved version with chunked uploading for large files
     */
     function handleNextFile() {
-      if (current_file_id >= all_files.length) {
+      if (currentFileID >= allFiles.length) {
         locked = false;
       } else {
-        if (!all_files[current_file_id].size || all_files[current_file_id].size <= 0) {
+        if (!allFiles[currentFileID].size || allFiles[currentFileID].size <= 0) {
           locked = false;
-          $(".file." + current_file_id + " .progressbar").css("display","none");
-          $(".file." + current_file_id).css('background-color', '#DAA');
-          $(".file." + current_file_id + " .progress .resulttextbox").val('Empty or invalid file.');
-          current_file_id++;
+          $(".file." + currentFileID + " .progressbar").css("display","none");
+          $(".file." + currentFileID).css('background-color', '#DAA');
+          $(".file." + currentFileID + " .progress .resulttextbox").val('Empty or invalid file.');
+          currentFileID++;
           return false;
         }
 
         locked = true;
-        var blob = all_files[current_file_id];
+        var blob = allFiles[currentFileID];
         var worker = new Worker("/static/js/upload.webworker.js");
-        var msg = {file: blob, fileID: current_file_id}
+        var msg = {file: blob, fileID: currentFileID, collectionID: uuid}
         worker.postMessage(msg);
+        $("#dropzoneLabel").css('display','none');
         worker.onmessage = function(e) {
           if (e.data.action == 'SUCCESS') {
-            $(".file." + current_file_id + " .progressbar").css("display","none");
-            uploadFinish(e.data.fileName, current_file_id);
-            all_files[current_file_id] = 1;
-            current_file_id++;
+            if(allFiles.length > 1)
+              $(".collection").css("display", "block");
+            $(".file." + currentFileID + " .progressbar").css("display","none");
+            uploadFinish(e.data.fileName, currentFileID);
+            allFiles[currentFileID] = 1;
+            currentFileID++;
             handleNextFile();
            } else if (e.data.action == 'FAIL') {
             locked = false;
-            $(".file." + current_file_id + " .progressbar").css("opacity","0.5");
-            $(".file." + current_file_id + " .progressbar").css("background-color","#DDD");
-            $(".file." + current_file_id).css('background-color', '#DAA');
-            $(".file." + current_file_id + " .progress .resulttextbox").val('Upload failed.');
-            all_files[current_file_id] = 1;
-            current_file_id++;
+            $(".file." + currentFileID + " .progressbar").css("opacity","0.5");
+            $(".file." + currentFileID + " .progressbar").css("background-color","#DDD");
+            $(".file." + currentFileID).css('background-color', '#DAA');
+            $(".file." + currentFileID + " .progress .resulttextbox").val('Upload failed.');
+            allFiles[currentFileID] = 1;
+            currentFileID++;
             handleNextFile();
             return false;
           } else if (e.data.action == 'PROGRESS') {
-            $(".file." + current_file_id + " .progressbar").width((100*e.data.sent) + "%");
+            $(".file." + currentFileID + " .progressbar").width((100*e.data.sent) + "%");
           }
         };
       }
     }
 
-    dropzone = document.getElementById("dropzone");
-    dropzone.addEventListener("dragenter", noopHandler, false);
-    dropzone.addEventListener("dragexit", noopHandler, false);
-    dropzone.addEventListener("dragover", noopHandler, false);
-    dropzone.addEventListener("drop", drop, false);
+
+    if (getUrlVars()['c']) {
+      console.log('urlvar', getUrlVars()['c']);
+      $("#dropzoneLabel").css('display','none');
+      var xmlhttp = new XMLHttpRequest();
+      xmlhttp.open("GET","/c/"+getUrlVars()['c'],true);
+      xmlhttp.onreadystatechange=function()
+        {
+        if (xmlhttp.readyState==4 && xmlhttp.status==200)
+          {
+            var responses = JSON.parse(xmlhttp.responseText);
+
+            for (var r in responses) {
+              var response = responses[r];
+              var url = String(window.location.origin+'/d/'+response.sha);
+              $("#dropzone").append(
+                '<div class="file ' + r + '" style="position:relative">' +
+                  '<span class="progressbar"></span>' +
+                  '<div class="name"><a href="' + url + '">' + response.fileName + '</a> (' + humanFileSize(response.fileSize, false) + ')</div>' +
+                  '<div class="progress">' +
+                    '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="'+url+'" disabled />' +
+                    '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="copy"/>' +
+                    '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />' +
+                  '</div>' +
+                '</div>'
+              );
+
+              $(".file." + r + " .progress .resultcopy").zclip(function(r, url) { console.log(r, "ok"); return {
+                path:'/static/js/ZeroClipboard.swf',
+                copy:function(){ return url; },
+                afterCopy: function(){
+                  $(".file." + r + " .progress .resultcopy").attr("disabled", "disabled");
+                  $(".file." + r + " .progress .resultcopy").val('copied')
+                  return true;
+                }
+              }}(r, url));
+
+            }
+          }
+        }
+      xmlhttp.send();
+
+    } else {
+      dropzone = document.getElementById("dropzone");
+      dropzone.addEventListener("dragenter", noopHandler, false);
+      dropzone.addEventListener("dragexit", noopHandler, false);
+      dropzone.addEventListener("dragover", noopHandler, false);
+      dropzone.addEventListener("drop", drop, false);
+    }
+
+    $("#dropzone").append(
+      '<div class="collection" style="position:relative;display: none;">' +
+        '<div class="name"><a href="'+uuidurl+'">Collection URL</a></div>' +
+        '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="'+uuidurl+'" />' +
+        '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="copy"/>' +
+        '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />' +
+      '</div>'
+    );
+    $(".file.collection.resultcopy").zclip({
+      path:'/static/js/ZeroClipboard.swf',
+      copy:function(){return uuidurl;},
+      afterCopy: function(){
+        $(".file." + currentFileID + " .progress .resultcopy").val('copied')
+        return true;
+      }
+    });
+
   });
 
 }(jQuery, window));

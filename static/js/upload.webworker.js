@@ -78,8 +78,8 @@ function uploadChunk (chunk) {
             // all chunks are sent.
             if (allDone) {
                 var xhrMerge = new XMLHttpRequest();
-                xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid);
-
+                xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid + "&collectionID=" + self.collectionID);
+                console.log("collectionID:" + self.collectionID);
                 xhrMerge.onreadystatechange = function (e) {
                     if (xhrMerge.readyState == 4) {
                         if (xhrMerge.status != 200) {
@@ -119,6 +119,7 @@ self.onmessage = function(e, buf) {
     self.chunkIndex = 0;
     self.chunkCount = Math.ceil(blob.size / BYTES_PER_CHUNK);
     self.fileName = blob.name;
+    self.collectionID = e.data.collectionID;
     self.uuid = guid();
     self.currentFileID = e.data.fileID;
     self.chunkList = Array(self.chunkCount);
