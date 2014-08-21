@@ -199,7 +199,7 @@ function humanFileSize(bytes, si) {
                 '</div>'
               );
 
-              $(".file." + r + " .progress .resultcopy").zclip(function(r, url) { console.log(r, "ok"); return {
+              $(".file." + r + " .progress .resultcopy").zclip(function(r, url) { return {
                 path:'/static/js/ZeroClipboard.swf',
                 copy:function(){ return url; },
                 afterCopy: function(){

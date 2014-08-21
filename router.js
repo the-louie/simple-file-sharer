@@ -22,13 +22,12 @@ function route(handle, pathname, response, postData, request) {
 	var result = false;
 
 	if ('function' === typeof handle(get_dir(pathname))) {
-		console.log('Handling request for', pathname, 'from', request.connection.remoteAddress);
+		console.log((new Date()).toJSON() + ' Handling request for', pathname, 'from', request.connection.remoteAddress);
 		result = handle(get_dir(pathname))(response, pathname, postData, request);
 	}
 
 	if (!result) {
-		console.log(result);
-		console.error('ERROR: request failed. ', pathname);
+		console.error((new Date()).toJSON() + ' ERROR: request failed. ', pathname);
 		//respondWithHTTPCode(response, 404);
 		response.writeHead(302, {
 		  'Location': '/'

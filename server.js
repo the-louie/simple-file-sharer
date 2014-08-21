@@ -20,7 +20,7 @@ function start(route, handle) {
 	}
 
 	http.createServer(onRequest).listen(config.port, config.ip);
-	console.log('Listening on '+config.ip+':'+config.port);
+	console.log((new Date()).toJSON() + ' Listening on '+config.ip+':'+config.port);
 }
 
 exports.start = start;

@@ -79,7 +79,6 @@ function uploadChunk (chunk) {
             if (allDone) {
                 var xhrMerge = new XMLHttpRequest();
                 xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid + "&collectionID=" + self.collectionID);
-                console.log("collectionID:" + self.collectionID);
                 xhrMerge.onreadystatechange = function (e) {
                     if (xhrMerge.readyState == 4) {
                         if (xhrMerge.status != 200) {
