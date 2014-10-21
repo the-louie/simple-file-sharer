@@ -174,7 +174,6 @@ function humanFileSize(bytes, si) {
 
 
     if (getUrlVars()['c']) {
-      console.log('urlvar', getUrlVars()['c']);
       $("#dropzoneLabel").css('display','none');
       var xmlhttp = new XMLHttpRequest();
       xmlhttp.open("GET","/c/"+getUrlVars()['c'],true);

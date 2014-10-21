@@ -58,7 +58,7 @@ function uploadChunk (chunk) {
         if (xhr.readyState == 4) {
             if (xhr.status != 200) {
                 self.postMessage({action:"FAIL", fileID:self.currentFileID})
-                console.error('Request failed: '+xhr.status + " " + xhr.responseText);
+                //console.error('Request failed: '+xhr.status + " " + xhr.responseText);
                 return false;
             }
 
@@ -83,7 +83,7 @@ function uploadChunk (chunk) {
                     if (xhrMerge.readyState == 4) {
                         if (xhrMerge.status != 200) {
                             self.postMessage({action:"FAIL", fileID:self.currentFileID})
-                            console.error('Merge failed: '+xhrMerge.status+' '+xhrMerge.responseText);
+                            //console.error('Merge failed: '+xhrMerge.status+' '+xhrMerge.responseText);
                         } else {
                             // report back that upload of file was successful!
                             self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:JSON.parse(xhrMerge.responseText).fileName})
