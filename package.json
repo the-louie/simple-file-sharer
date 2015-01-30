@@ -1,17 +1,18 @@
 {
   "name": "simple-file-sharer",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Simple file sharer",
   "main": "index.js",
   "directories": {
-    "test": "test"
   },
   "dependencies": {
     "mime": "~1.2.11",
-    "qs": "~1.2.1",
-    "sqlite3": "~2.2.0"
+    "sqlite3": "~2.2.7",
+    "express": "~4.11.1",
+    "body-parser": "~1.10.2",
+    "fs": "0.0.2",
+    "crypto": "0.0.3"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"

@@ -98,7 +98,7 @@ function humanFileSize(bytes, si) {
         $(".file." + currentFileID + " .progress .resultcopy").val('copy')
         $(".file." + currentFileID + " .progress .resultcopy").removeAttr('disabled');
         $(".file." + currentFileID + " .progress .resultcopy").zclip({
-          path:'/static/js/ZeroClipboard.swf',
+          path:'/js/ZeroClipboard.swf',
           copy:function(){return url;},
           afterCopy: function(){
             $(".file." + currentFileID + " .progress .resultcopy").attr("disabled", "disabled");
@@ -142,7 +142,7 @@ function humanFileSize(bytes, si) {
 
         locked = true;
         var blob = allFiles[currentFileID];
-        var worker = new Worker("/static/js/upload.webworker.js");
+        var worker = new Worker("/js/upload.webworker.js");
         var msg = {file: blob, fileID: currentFileID, collectionID: uuid}
         worker.postMessage(msg);
         $("#dropzoneLabel").css('display','none');
@@ -199,7 +199,7 @@ function humanFileSize(bytes, si) {
               );
 
               $(".file." + r + " .progress .resultcopy").zclip(function(r, url) { return {
-                path:'/static/js/ZeroClipboard.swf',
+                path:'/js/ZeroClipboard.swf',
                 copy:function(){ return url; },
                 afterCopy: function(){
                   $(".file." + r + " .progress .resultcopy").attr("disabled", "disabled");
@@ -230,7 +230,7 @@ function humanFileSize(bytes, si) {
       '</div>'
     );
     $(".file.collection.resultcopy").zclip({
-      path:'/static/js/ZeroClipboard.swf',
+      path:'/js/ZeroClipboard.swf',
       copy:function(){return uuidurl;},
       afterCopy: function(){
         $(".file." + currentFileID + " .progress .resultcopy").val('copied')
