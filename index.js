@@ -1,12 +1,11 @@
-var express = require('express')
-var app = express()
+var express    = require('express')
+var app 	   = express()
 var bodyParser = require('body-parser')
-var session = require('express-session');
 //
-var config = require('./config');
+var config 	 = require('./config');
 var sqlite   = require('sqlite3').verbose();
-var db = new sqlite.Database(config.db_name);
-var fs = require('fs');
+var db 		 = new sqlite.Database(config.db_name);
+var fs 		 = require('fs');
 var mime     = require('mime');
 var crypto   = require('crypto');
 //
@@ -22,43 +21,46 @@ app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
 }));
 
 
-app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
 
 // auth stuff
-var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
-app.get('/login', function(req, res) {
-  res.sendfile('static/login.html');
-});
-app.use(passport.initialize());
-app.use(passport.session());
-app.post('/login',
-  passport.authenticate('local', {
-	successRedirect: '/',
-	failureRedirect: '/login'
-  })
-);
+if (config.authdetails && config.authdetails.username && config.authdetails.password) {
+	var session = require('express-session');
+	var passport = require('passport');
+	var LocalStrategy = require('passport-local').Strategy;
 
-passport.serializeUser(function(user, done) { done(null, user); });
-passport.deserializeUser(function(user, done) { done(null, user); });
-passport.use(new LocalStrategy(function(username, password, done) {
-	process.nextTick(function() {
-		if (username == config.authdetails.username && password == config.authdetails.password)
-			return done(null, config.authdetails.username);
-		else
-			return done("No such user or password");
+	app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
+	app.get('/login', function(req, res) {
+	  res.sendFile(__dirname + '/static/login.html');
 	});
-}));
+	app.use(passport.initialize());
+	app.use(passport.session());
+	app.post('/login',
+	  passport.authenticate('local', {
+		successRedirect: '/',
+		failureRedirect: '/login'
+	  })
+	);
 
+	passport.serializeUser(function(user, done) { done(null, user); });
+	passport.deserializeUser(function(user, done) { done(null, user); });
+	passport.use(new LocalStrategy(function(username, password, done) {
+		process.nextTick(function() {
+			if (username == config.authdetails.username && password == config.authdetails.password)
+				return done(null, config.authdetails.username);
+			else
+				return done("No such user or password");
+		});
+	}));
+	app.use(function(req, res, next) {
+		if (req.user == null && req.path.indexOf('/login') !== 0) {
+			res.redirect('/login');
+			return;
+		}
+		next();
+	});
+}
 // end auth stuff
 
-app.use(function(req, res, next) {
-	if (req.user == null && req.path.indexOf('/login') !== 0) {
-		res.redirect('/login');
-		return;
-	}
-	next();
-});
 
 app.use(express.static(__dirname + '/static/'));
 
