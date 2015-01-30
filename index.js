@@ -1,6 +1,7 @@
 var express = require('express')
 var app = express()
 var bodyParser = require('body-parser')
+var session = require('express-session');
 //
 var config = require('./config');
 var sqlite   = require('sqlite3').verbose();
@@ -14,13 +15,55 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOI
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);")
 
 
-app.use(express.static(__dirname + '/static/'));
-
 
 app.use( bodyParser.json() );       // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
   extended: true
 }));
+
+
+app.use(session({ secret: config.secret }));
+
+// auth stuff
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+app.get('/login', function(req, res) {
+  res.sendfile('static/login.html');
+});
+app.use(passport.initialize());
+app.use(passport.session());
+app.post('/login',
+  passport.authenticate('local', {
+	successRedirect: '/',
+	failureRedirect: '/login'
+  })
+);
+
+// app.get('/loginFailure', function(req, res, next) { res.send('Failed to authenticate'); });
+// app.get('/loginSuccess', function(req, res, next) { res.send('Successfully authenticated'); });
+passport.serializeUser(function(user, done) { done(null, user); });
+passport.deserializeUser(function(user, done) { done(null, user); });
+passport.use(new LocalStrategy(function(username, password, done) {
+	process.nextTick(function() {
+		if (username == config.authdetails.username && password == config.authdetails.password)
+			return done(null, config.authdetails.username);
+		else
+			return done("No such user or password");
+	});
+}));
+
+// end auth stuff
+
+app.use(function(req, res, next) {
+	if (req.user == null && req.path.indexOf('/login') !== 0) {
+		res.redirect('/login');
+		return;
+	}
+	next();
+});
+
+app.use(express.static(__dirname + '/static/'));
+
 
 app.post('/upload/', function(request, response) {
 	var fileBuffer = new Buffer("", 'binary');
@@ -30,133 +73,133 @@ app.post('/upload/', function(request, response) {
 	});
 
 	request.on('end', function () {
-	    if (fileBuffer.length <= 0) { console.error("serveUploadChunks: fileBuffer empty"); response.statusCode = 431; response.end(); return false; }
+		if (fileBuffer.length <= 0) { console.error("serveUploadChunks: fileBuffer empty"); response.statusCode = 431; response.end(); return false; }
 
-	    var uuid              = request.query.uuid;
-	    var chunkID           = request.query.chunkIndex;
-	    var remoteAddress     = request.connection.remoteAddress;
+		var uuid              = request.query.uuid;
+		var chunkID           = request.query.chunkIndex;
+		var remoteAddress     = request.connection.remoteAddress;
 
-	    var fileName          = crypto.createHash('sha256').update(
-	                                chunkID +
-	                                config.secret +
-	                                remoteAddress + uuid
-	                            ).digest("hex") + "_" + chunkID;
+		var fileName          = crypto.createHash('sha256').update(
+									chunkID +
+									config.secret +
+									remoteAddress + uuid
+								).digest("hex") + "_" + chunkID;
 
-	    // save chunk to database
-	    var stmt = db.prepare('INSERT INTO uploaded_chunks (uuid, filename, chunk_id) VALUES (?,?,?)');
-	    stmt.run(uuid, fileName, chunkID);
-	    stmt.finalize();
+		// save chunk to database
+		var stmt = db.prepare('INSERT INTO uploaded_chunks (uuid, filename, chunk_id) VALUES (?,?,?)');
+		stmt.run(uuid, fileName, chunkID);
+		stmt.finalize();
 
-	    // save chunk to file
-	    chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
-	    chunkFile.write(fileBuffer);
-	    chunkFile.end();
+		// save chunk to file
+		chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
+		chunkFile.write(fileBuffer);
+		chunkFile.end();
 
-	    response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
-	    response.statusCode = 200;
-	    response.end();
+		response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
+		response.statusCode = 200;
+		response.end();
 	});
 
 });
 
 app.get('/d/:fileName/', function (request, response) {
-    var sha = request.params.fileName;
+	var sha = request.params.fileName;
 
-    var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
-    db.get(query, [sha], function(err, row) {
-        if (null == row || null == row.fileName) {
-            console.error('ERROR: Unknown hash, "' + sha + '"');
-            return false;
-        }
+	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
+	db.get(query, [sha], function(err, row) {
+		if (null == row || null == row.fileName) {
+			console.error('ERROR: Unknown hash, "' + sha + '"');
+			return false;
+		}
 
-        var fileName = config.upload_dir+'/'+sha;
-        if (!fs.existsSync(fileName)) {
-            console.error('ERROR: No such file "' + fileName + '"');
-            return false;
-        }
+		var fileName = config.upload_dir+'/'+sha;
+		if (!fs.existsSync(fileName)) {
+			console.error('ERROR: No such file "' + fileName + '"');
+			return false;
+		}
 
-        var header = {};
-        var realFileName = row.fileName;
+		var header = {};
+		var realFileName = row.fileName;
 
-        var mimeType = mime.lookup(realFileName);
-        if (mimeType.split('/')[0] != 'image')
-            header['Content-Disposition'] = 'attachment; filename=' + realFileName;
+		var mimeType = mime.lookup(realFileName);
+		if (mimeType.split('/')[0] != 'image')
+			header['Content-Disposition'] = 'attachment; filename=' + realFileName;
 
-        header['Content-Type'] = mimeType;
-        response.writeHead(200, header);
-        response.end(fs.readFileSync(fileName));
-        return true;
-    });
+		header['Content-Type'] = mimeType;
+		response.writeHead(200, header);
+		response.end(fs.readFileSync(fileName));
+		return true;
+	});
 })
 
 app.post('/merge/', function (request, response) {
-    var uuid              = request.query.uuid;
-    var chunkID           = request.query.chunkIndex;
-    var remoteAddress     = request.connection.remoteAddress;
-    var originalFileName  = request.query.name;
-    var collectionID      = request.query.collectionID;
+	var uuid              = request.query.uuid;
+	var chunkID           = request.query.chunkIndex;
+	var remoteAddress     = request.connection.remoteAddress;
+	var originalFileName  = request.query.name;
+	var collectionID      = request.query.collectionID;
 
-    var fileName          = crypto.createHash('sha256').update(
-                                originalFileName +
-                                (new Date().getTime()) +
-                                config.secret +
-                                remoteAddress
-                            ).digest("hex");
+	var fileName          = crypto.createHash('sha256').update(
+								originalFileName +
+								(new Date().getTime()) +
+								config.secret +
+								remoteAddress
+							).digest("hex");
 
-    var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
-    var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
-    var fileList = [];
-    var fileSize = 0;
-    db.all(query, [uuid], function(err, rows) {
-        for (r in rows) {
-            row = rows[r];
-            var chunkFileName = row.filename;
+	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
+	var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
+	var fileList = [];
+	var fileSize = 0;
+	db.all(query, [uuid], function(err, rows) {
+		for (r in rows) {
+			row = rows[r];
+			var chunkFileName = row.filename;
 
-            chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
-            result_file.write(chunkData);
-            fileSize += chunkData.length;
-            fileList.push(config.upload_dir+'/pending/'+chunkFileName);
-        }
+			chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
+			result_file.write(chunkData);
+			fileSize += chunkData.length;
+			fileList.push(config.upload_dir+'/pending/'+chunkFileName);
+		}
 
-        result_file.end(function() {
-            for (i in fileList) {
-                thisFile = fileList[i];
-                fs.unlink(thisFile, function (err) {
-                    if (err) throw err;
-                });
-            }
-        });
+		result_file.end(function() {
+			for (i in fileList) {
+				thisFile = fileList[i];
+				fs.unlink(thisFile, function (err) {
+					if (err) throw err;
+				});
+			}
+		});
 
-        var stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
-        stmt.run(uuid);
-        stmt.finalize();
+		var stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
+		stmt.run(uuid);
+		stmt.finalize();
 
-        var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
-        stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress);
-        stmt.finalize();
+		var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
+		stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress);
+		stmt.finalize();
 
-        response.write(JSON.stringify({'fileName':fileName}));
-        response.statusCode = 200;
-        response.end();
-    });
+		response.write(JSON.stringify({'fileName':fileName}));
+		response.statusCode = 200;
+		response.end();
+	});
 });
 
 app.get('/c/:collectionID', function (request, response) {
-    var collectionID = request.params.collectionID;
-    var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
-    db.all(query, [collectionID], function(err, rows) {
-        if(rows) {
-            files = [];
-            for (r in rows) {
-                row = rows[r];
-                files.push({fileName:row.fileName,sha:row.sha,fileSize:row.fileSize});
-            }
-            response.writeHead(200, "text/html");
-            response.end(JSON.stringify(files));
-        }
-    });
+	var collectionID = request.params.collectionID;
+	var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
+	db.all(query, [collectionID], function(err, rows) {
+		if(rows) {
+			files = [];
+			for (r in rows) {
+				row = rows[r];
+				files.push({fileName:row.fileName,sha:row.sha,fileSize:row.fileSize});
+			}
+			response.writeHead(200, "text/html");
+			response.end(JSON.stringify(files));
+		}
+	});
 
-    return true;
+	return true;
 });
 
 var server = app.listen(9898, function () {

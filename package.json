@@ -3,15 +3,16 @@
   "version": "0.3.0",
   "description": "Simple file sharer",
   "main": "index.js",
-  "directories": {
-  },
+  "directories": {},
   "dependencies": {
     "mime": "~1.2.11",
     "sqlite3": "~2.2.7",
     "express": "~4.11.1",
     "body-parser": "~1.10.2",
     "fs": "0.0.2",
-    "crypto": "0.0.3"
+    "crypto": "0.0.3",
+    "passport-local": "~1.0.0",
+    "express-session": "~1.10.1"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
