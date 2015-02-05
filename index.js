@@ -215,7 +215,7 @@ app.get('/c/:collectionID', function (request, response) {
 	});
 });
 
-var server = app.listen(9898, function () {
+var server = app.listen(config.port, config.ip, function () {
   var host = server.address().address
   var port = server.address().port
 })
