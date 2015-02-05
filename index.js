@@ -112,7 +112,7 @@ app.get('/d/:fileName/', function (request, response) {
 			return false;
 		}
 
-		var fileName = config.upload_dir+'/'+sha;
+		var fileName = __dirname + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
 			console.error('ERROR: No such file "' + fileName + '"');
 			return false;
@@ -122,13 +122,22 @@ app.get('/d/:fileName/', function (request, response) {
 		var realFileName = row.fileName;
 
 		var mimeType = mime.lookup(realFileName);
-		if (mimeType.split('/')[0] != 'image')
-			header['Content-Disposition'] = 'attachment; filename=' + realFileName;
+		// if (mimeType.split('/')[0] != 'image')
+		// 	header['Content-Disposition'] = 'attachment; filename=' + realFileName;
 
-		header['Content-Type'] = mimeType;
-		response.writeHead(200, header);
-		response.end(fs.readFileSync(fileName));
-		return true;
+		// header['Content-Type'] = mimeType;
+		// response.writeHead(200, header);
+		// //response.end(fs.readFileSync(fileName));
+
+
+		// //f = fs.openSync(fileName,'r');
+		console.log(fs.statSync(fileName));
+		//f.close();
+
+		console.log('Downloading"' + fileName + '"');
+		// response.download(fileName, realFileName);
+		response.download(fileName, realFileName);
+		// response.end()
 	});
 })
 
