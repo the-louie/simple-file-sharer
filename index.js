@@ -29,8 +29,8 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	var LocalStrategy = require('passport-local').Strategy;
 
 	app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
-	app.get('/login', function(req, res) {
-	  res.sendFile(__dirname + '/static/login.html');
+	app.get('/login', function(request, response) {
+	  response.sendFile(__dirname + '/static/login.html');
 	});
 	app.use(passport.initialize());
 	app.use(passport.session());
@@ -51,9 +51,9 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 				return done("No such user or password");
 		});
 	}));
-	app.use(function(req, res, next) {
-		if (req.user == null && req.path.indexOf('/login') !== 0) {
-			res.redirect('/login');
+	app.use(function(request, response, next) {
+		if (request.user == null && request.path.indexOf('/login') !== 0) {
+			response.redirect('/login');
 			return;
 		}
 		next();
@@ -109,12 +109,14 @@ app.get('/d/:fileName/', function (request, response) {
 	db.get(query, [sha], function(err, row) {
 		if (null == row || null == row.fileName) {
 			console.error('ERROR: Unknown hash, "' + sha + '"');
+			response.status(404).end();
 			return false;
 		}
 
 		var fileName = __dirname + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
 			console.error('ERROR: No such file "' + fileName + '"');
+			response.status(404).end();
 			return false;
 		}
 
@@ -122,22 +124,24 @@ app.get('/d/:fileName/', function (request, response) {
 		var realFileName = row.fileName;
 
 		var mimeType = mime.lookup(realFileName);
-		// if (mimeType.split('/')[0] != 'image')
-		// 	header['Content-Disposition'] = 'attachment; filename=' + realFileName;
+		if (mimeType.split('/')[0] == 'image') {
+			console.log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
+			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
+			    if (err) {
+			      console.log(err);
+			      response.status(err.status).end();
+			    }
+			});
+		} else {
+			console.log('Downloading" ' + fileName + '"');
+			response.download(fileName, realFileName, function(err) {
+			    if (err) {
+			      console.log(err);
+			      response.status(err.status).end();
+			    }
+			});
+		}
 
-		// header['Content-Type'] = mimeType;
-		// response.writeHead(200, header);
-		// //response.end(fs.readFileSync(fileName));
-
-
-		// //f = fs.openSync(fileName,'r');
-		console.log(fs.statSync(fileName));
-		//f.close();
-
-		console.log('Downloading"' + fileName + '"');
-		// response.download(fileName, realFileName);
-		response.download(fileName, realFileName);
-		// response.end()
 	});
 })
 
@@ -205,15 +209,13 @@ app.get('/c/:collectionID', function (request, response) {
 			}
 			response.writeHead(200, "text/html");
 			response.end(JSON.stringify(files));
-		}
+		} else
+			response.status(404).end();
+			return false;
 	});
-
-	return true;
 });
 
 var server = app.listen(9898, function () {
-
   var host = server.address().address
   var port = server.address().port
-
 })
