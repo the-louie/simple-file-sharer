@@ -1,6 +1,6 @@
 {
   "name": "simple-file-sharer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Simple file sharer",
   "main": "index.js",
   "directories": {},
