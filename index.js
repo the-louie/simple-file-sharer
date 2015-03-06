@@ -1,26 +1,16 @@
 var express    = require('express')
 var app 	   = express()
-var bodyParser = require('body-parser')
-//
+
 var config 	 = require('./config');
 var sqlite   = require('sqlite3').verbose();
 var db 		 = new sqlite.Database(config.db_name);
 var fs 		 = require('fs');
 var mime     = require('mime');
 var crypto   = require('crypto');
-//
+
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);")
-
-
-
-app.use( bodyParser.json() );       // to support JSON-encoded bodies
-app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
-  extended: true
-}));
-
-
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
@@ -98,6 +88,8 @@ app.post('/upload/', function(request, response) {
 		response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
 		response.statusCode = 200;
 		response.end();
+
+		console.log(remoteAddress,'uploaded',fileName,chunkID)
 	});
 
 });
@@ -133,7 +125,7 @@ app.get('/d/:fileName/', function (request, response) {
 			    }
 			});
 		} else {
-			console.log('Downloading" ' + fileName + '"');
+			console.log(request.connection.remoteAddress,'downloading" ' + fileName + '"');
 			response.download(fileName, realFileName, function(err) {
 			    if (err) {
 			      console.log(err);
@@ -219,3 +211,5 @@ var server = app.listen(config.port, config.ip, function () {
   var host = server.address().address
   var port = server.address().port
 })
+
+console.log("simple-file-sharer started on "+config.ip+":"+config.port);
