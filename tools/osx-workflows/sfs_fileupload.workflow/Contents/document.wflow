@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AMApplicationBuild</key>
+	<string>409.2</string>
+	<key>AMApplicationVersion</key>
+	<string>2.5</string>
+	<key>AMDocumentVersion</key>
+	<string>2</string>
+	<key>actions</key>
+	<array>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Optional</key>
+					<true/>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>AMActionVersion</key>
+				<string>2.0.3</string>
+				<key>AMApplication</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<dict/>
+					<key>CheckedForUserDefaultShell</key>
+					<dict/>
+					<key>inputMethod</key>
+					<dict/>
+					<key>shell</key>
+					<dict/>
+					<key>source</key>
+					<dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>ActionBundlePath</key>
+				<string>/System/Library/Automator/Run Shell Script.action</string>
+				<key>ActionName</key>
+				<string>Kör kommandotolkskript</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<string>#! /usr/bin/python
+#
+# for each specified file upload it to simple-file-sharer
+# and return status for use in sfs_osx_helper.
+
+import os
+import sys
+import uuid
+import requests
+
+# set max chunk size
+CHUNKSIZE = 1024*1024
+
+# set target server
+TARGET="filedrop.int/"
+
+# strip the first element (script name) off
+files = sys.argv[1:]
+if len(files) == 0:
+	print "ERROR 'No files specified'"
+	sys.exit()
+
+# setup global variables
+collectionUUID = uuid.uuid1()
+fileUUID = uuid.uuid1()
+fileCount = 0
+
+for f in files:
+	# setup variables per file
+	chunkIndex = 0
+	fileNamePath = os.path.abspath(f)
+	fileName = os.path.basename(fileNamePath)
+
+	# make sure the file is in place before we start
+	if not os.path.exists(fileNamePath):
+		continue
+	if os.path.isdir(fileNamePath):
+		continue
+
+	# upload to server chunk by chunk
+	with open(fileNamePath,'rb') as fi:
+		while True:
+			# read chunk
+			data = fi.read(CHUNKSIZE)
+
+			# if chunk empty we're done
+			if not data:
+				break
+
+			# upload chunk
+			res = requests.post(url='http://{0}upload?chunkIndex={1}&amp;uuid={2}'.format(TARGET, chunkIndex, fileUUID), data=data, headers={'Content-Type': 'application/octet-stream'})
+			chunkIndex += 1
+
+	# merge chunks serverside
+	res = requests.post(url="http://{0}merge?name={1}&amp;chunkCount={2}&amp;uuid={3}&amp;collectionID={4}".format(TARGET, fileName, chunkIndex, fileUUID, collectionUUID))
+	if res.json()['fileName']:
+		fileCount += 1
+
+
+if len(files) == 1:
+	print "FILE"
+	if fileCount == 1:
+		print "OK\n{0}\nhttp://{1}d/{2}".format(fileName, TARGET, res.json()['fileName'], fileNamePath)
+	else:
+		print "FAIL\n{0}".format(fileName)
+elif len(files) &gt; 1:
+	print "COLLECTION"
+	if fileCount &gt; 0:
+		print "OK\n{0} files uploaded\nhttp://{1}?c={2}".format(fileCount, TARGET, collectionUUID)
+	else:
+		print "FAIL\n{0} files".format(len(files))
+</string>
+					<key>CheckedForUserDefaultShell</key>
+					<true/>
+					<key>inputMethod</key>
+					<integer>1</integer>
+					<key>shell</key>
+					<string>/usr/bin/python</string>
+					<key>source</key>
+					<string></string>
+				</dict>
+				<key>BundleIdentifier</key>
+				<string>com.apple.RunShellScript</string>
+				<key>CFBundleVersion</key>
+				<string>2.0.3</string>
+				<key>CanShowSelectedItemsWhenRun</key>
+				<false/>
+				<key>CanShowWhenRun</key>
+				<true/>
+				<key>Category</key>
+				<array>
+					<string>AMCategoryUtilities</string>
+				</array>
+				<key>Class Name</key>
+				<string>RunShellScriptAction</string>
+				<key>IgnoresInput</key>
+				<false/>
+				<key>InputUUID</key>
+				<string>BD8A2809-E504-4AC9-8D9C-F91A73743A49</string>
+				<key>Keywords</key>
+				<array>
+					<string>Kommandotolk</string>
+					<string>Skript</string>
+					<string>Kommando</string>
+					<string>Kör</string>
+					<string>Unix</string>
+				</array>
+				<key>OutputUUID</key>
+				<string>B0B268B9-661A-4C83-BE32-AE94F32A19AE</string>
+				<key>ShowWhenRun</key>
+				<false/>
+				<key>UUID</key>
+				<string>3507AFD3-58C1-42BF-890C-FE72DB19E4A9</string>
+				<key>UnlocalizedApplications</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key>
+					<dict>
+						<key>default value</key>
+						<integer>0</integer>
+						<key>name</key>
+						<string>inputMethod</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>0</string>
+					</dict>
+					<key>1</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>source</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>1</string>
+					</dict>
+					<key>2</key>
+					<dict>
+						<key>default value</key>
+						<false/>
+						<key>name</key>
+						<string>CheckedForUserDefaultShell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>2</string>
+					</dict>
+					<key>3</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>COMMAND_STRING</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>3</string>
+					</dict>
+					<key>4</key>
+					<dict>
+						<key>default value</key>
+						<string>/bin/sh</string>
+						<key>name</key>
+						<string>shell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>4</string>
+					</dict>
+				</dict>
+				<key>isViewVisible</key>
+				<true/>
+				<key>location</key>
+				<string>780.000000:253.000000</string>
+				<key>nibPath</key>
+				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/sv.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Optional</key>
+					<true/>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>AMActionVersion</key>
+				<string>2.0.3</string>
+				<key>AMApplication</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<dict/>
+					<key>CheckedForUserDefaultShell</key>
+					<dict/>
+					<key>inputMethod</key>
+					<dict/>
+					<key>shell</key>
+					<dict/>
+					<key>source</key>
+					<dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key>
+					<string>List</string>
+					<key>Types</key>
+					<array>
+						<string>com.apple.cocoa.string</string>
+					</array>
+				</dict>
+				<key>ActionBundlePath</key>
+				<string>/System/Library/Automator/Run Shell Script.action</string>
+				<key>ActionName</key>
+				<string>Kör kommandotolkskript</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>COMMAND_STRING</key>
+					<string>#! /bin/sh
+#
+# this script takes the output from sfs_upload.py
+#
+# on success add the url to the copy-buffer, play a sound and display a notification
+# on failure just play a sound and display a notification
+#
+
+type=$1
+state=$2
+msg=$3
+url=$4
+
+if [ "$state" = "FAIL" ]; then
+	/usr/bin/osascript -e "display notification \"Upload to filedrop failed\" with title \"Filedrop failed\" subtitle \"($msg)\"" &gt;/dev/null 2&gt;&amp;1
+	/usr/bin/afplay /System/Library/Sounds/Basso.aiff &gt;/dev/null 2&gt;&amp;1
+else
+	/bin/echo -n "$url" | /usr/bin/pbcopy &gt;/dev/null 2&gt;&amp;1
+	/usr/bin/osascript -e "display notification \"The filedrop URL are on your clipboard\" with title \"Filedrop successfull\" subtitle \"($msg)\"" &gt;/dev/null 2&gt;&amp;1
+	/usr/bin/afplay /System/Library/Sounds/Purr.aiff &gt;/dev/null 2&gt;&amp;1
+fi
+</string>
+					<key>CheckedForUserDefaultShell</key>
+					<true/>
+					<key>inputMethod</key>
+					<integer>1</integer>
+					<key>shell</key>
+					<string>/bin/sh</string>
+					<key>source</key>
+					<string></string>
+				</dict>
+				<key>BundleIdentifier</key>
+				<string>com.apple.RunShellScript</string>
+				<key>CFBundleVersion</key>
+				<string>2.0.3</string>
+				<key>CanShowSelectedItemsWhenRun</key>
+				<false/>
+				<key>CanShowWhenRun</key>
+				<true/>
+				<key>Category</key>
+				<array>
+					<string>AMCategoryUtilities</string>
+				</array>
+				<key>Class Name</key>
+				<string>RunShellScriptAction</string>
+				<key>InputUUID</key>
+				<string>94D059BE-5B2F-4AF5-9B3E-1E65D00C5CD7</string>
+				<key>Keywords</key>
+				<array>
+					<string>Kommandotolk</string>
+					<string>Skript</string>
+					<string>Kommando</string>
+					<string>Kör</string>
+					<string>Unix</string>
+				</array>
+				<key>OutputUUID</key>
+				<string>852F43EC-052E-427E-8302-5C6645B1FBE0</string>
+				<key>UUID</key>
+				<string>7C8F9633-E447-4C3E-8655-26F50FCB0950</string>
+				<key>UnlocalizedApplications</key>
+				<array>
+					<string>Automator</string>
+				</array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key>
+					<dict>
+						<key>default value</key>
+						<integer>0</integer>
+						<key>name</key>
+						<string>inputMethod</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>0</string>
+					</dict>
+					<key>1</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>source</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>1</string>
+					</dict>
+					<key>2</key>
+					<dict>
+						<key>default value</key>
+						<false/>
+						<key>name</key>
+						<string>CheckedForUserDefaultShell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>2</string>
+					</dict>
+					<key>3</key>
+					<dict>
+						<key>default value</key>
+						<string></string>
+						<key>name</key>
+						<string>COMMAND_STRING</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>3</string>
+					</dict>
+					<key>4</key>
+					<dict>
+						<key>default value</key>
+						<string>/bin/sh</string>
+						<key>name</key>
+						<string>shell</string>
+						<key>required</key>
+						<string>0</string>
+						<key>type</key>
+						<string>0</string>
+						<key>uuid</key>
+						<string>4</string>
+					</dict>
+				</dict>
+				<key>isViewVisible</key>
+				<true/>
+				<key>location</key>
+				<string>780.000000:436.000000</string>
+				<key>nibPath</key>
+				<string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/sv.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key>
+			<true/>
+		</dict>
+	</array>
+	<key>connectors</key>
+	<dict>
+		<key>7951BAF1-68A1-4BB2-ACE2-B5603AEA5D82</key>
+		<dict>
+			<key>from</key>
+			<string>3507AFD3-58C1-42BF-890C-FE72DB19E4A9 - 3507AFD3-58C1-42BF-890C-FE72DB19E4A9</string>
+			<key>to</key>
+			<string>7C8F9633-E447-4C3E-8655-26F50FCB0950 - 7C8F9633-E447-4C3E-8655-26F50FCB0950</string>
+		</dict>
+	</dict>
+	<key>workflowMetaData</key>
+	<dict>
+		<key>serviceApplicationBundleID</key>
+		<string>com.apple.finder</string>
+		<key>serviceApplicationPath</key>
+		<string>/System/Library/CoreServices/Finder.app</string>
+		<key>serviceInputTypeIdentifier</key>
+		<string>com.apple.Automator.fileSystemObject</string>
+		<key>serviceOutputTypeIdentifier</key>
+		<string>com.apple.Automator.nothing</string>
+		<key>serviceProcessesInput</key>
+		<integer>0</integer>
+		<key>workflowTypeIdentifier</key>
+		<string>com.apple.Automator.servicesMenu</string>
+	</dict>
+</dict>
+</plist>
