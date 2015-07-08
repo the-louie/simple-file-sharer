@@ -1,3 +1,8 @@
+#! /usr/bin/python
+#
+# for each specified file upload it to simple-file-sharer
+# and return status for use in sfs_osx_helper.
+
 import os
 import sys
 import uuid
@@ -7,7 +12,7 @@ import requests
 CHUNKSIZE = 1024*1024
 
 # set target server
-TARGET="filedrop.int.prnw.net/"
+TARGET="filedrop.int/"
 
 # strip the first element (script name) off
 files = sys.argv[1:]
@@ -55,12 +60,12 @@ for f in files:
 if len(files) == 1:
 	print "FILE"
 	if fileCount == 1:
-		print "OK\n{0}\n{1}d/{2}".format(fileName, TARGET, res.json()['fileName'], fileNamePath)
+		print "OK\n{0}\nhttp://{1}d/{2}".format(fileName, TARGET, res.json()['fileName'], fileNamePath)
 	else:
 		print "FAIL\n{0}".format(fileName)
 elif len(files) > 1:
 	print "COLLECTION"
 	if fileCount > 0:
-		print "OK\n{0} files uploaded\n{1}?c={2}".format(fileCount, TARGET, collectionUUID)
+		print "OK\n{0} files uploaded\nhttp://{1}?c={2}".format(fileCount, TARGET, collectionUUID)
 	else:
 		print "FAIL\n{0} files".format(len(files))
