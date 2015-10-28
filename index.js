@@ -95,7 +95,7 @@ app.post('/upload/', function(request, response) {
 });
 
 app.get('/d/:fileName/', function (request, response) {
-	var sha = request.params.fileName;
+	var sha = request.params.fileName.replace(/\.[A-Za-z0-9]{3}$/,"");
 
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
 	db.get(query, [sha], function(err, row) {
