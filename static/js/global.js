@@ -72,7 +72,7 @@ function humanFileSize(bytes, si) {
                 $("#dropzone").append(
                 '<div class="file ' + i + '" style="position:relative">' +
                     '<span class="progressbar"></span>' +
-                    '<div class="name">' + files[j].name + '</div>' +
+                    '<div class="name ' + i + '"></div>' +
                     '<div class="progress">' +
                         '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="Waiting..." disabled />' +
                         '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="..." DISABLED/>' +
@@ -80,6 +80,7 @@ function humanFileSize(bytes, si) {
                     '</div>' +
                 '</div>'
                 );
+                $(".name." + i).text(files[j].name);
             }
             document.getElementById("dropzone").scrollTop = document.getElementById("dropzone").scrollHeight;
             waiting += count;
