@@ -209,7 +209,7 @@ function humanFileSize(bytes, si) {
     xmlhttp.send();
 
     } else {
-        dropzone = document.getElementById("dropzone");
+        dropzone = $(".dropdiv")[0];
         dropzone.addEventListener("dragenter", noopHandler, false);
         dropzone.addEventListener("dragexit", noopHandler, false);
         dropzone.addEventListener("dragover", noopHandler, false);
