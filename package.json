@@ -12,6 +12,7 @@
     "express": "~4.11.1",
     "express-session": "~1.10.1",
     "fs": "0.0.2",
+    "lodash": "^3.10.1",
     "mime": "~1.2.11",
     "passport": "~0.2.1",
     "passport-local": "~1.0.0",

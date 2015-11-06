@@ -3,20 +3,40 @@ var await = require("asyncawait/await");
 var fs 		 = require('fs');
 var mime     = require('mime');
 var crypto   = require('crypto');
+var _ 		 = require('lodash');
 
 var express    = require('express');
 var app 	   = express();
 
+var config;
+try {
+	config 	 = require('./config.json');
+} catch (e) {
+	console.log("\n!                                                  !");
+	console.log("!      WARNING! USING DEAFULT CONFIGURATION        !");
+	console.log("!                                                  !");
+	console.log("!  Please copy config_example.json to config.json  !");
+	console.log("!  and modify it according to your needs.          !\n\n");
+	config = {
+		"ip": "localhost",
+		"port": 9898,
+		"upload_dir": "./uploads",
+		"static_dir": "./static",
+		"db_name": "./memory.db",
+		"secret": "rbDNSGCTdvDacGGvR gz7FbXzZrhhgp3BL6bIgNuGxGjve3U072Z7WzOwdeSSevC",
+		"short_hash": true,
+	};
+}
+
 var Bluebird = require('bluebird');
 var sqlite = Bluebird.promisifyAll(require('sqlite3'));
-
-var config 	 = require('./config');
-
 var db 		 = new sqlite.Database(config.db_name);
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
+
+var secret = crypto.createHash('sha256').update(config.secret+(new Date().getTime())).digest("hex");
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
