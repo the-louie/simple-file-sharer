@@ -253,5 +253,5 @@ app.get('/c/:collectionID', function (request, response) {
 var server = app.listen(config.port, config.ip, function () {
 	var host = server.address().address;
 	var port = server.address().port;
-	console.log("simple-file-sharer started on "+host+":"+port);
+	console.log("simple-file-sharer started on http://"+host+":"+port);
 });
