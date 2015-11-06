@@ -1,5 +1,5 @@
-var express    = require('express')
-var app 	   = express()
+var express    = require('express');
+var app 	   = express();
 
 var config 	 = require('./config');
 var sqlite   = require('sqlite3').verbose();
@@ -10,7 +10,7 @@ var crypto   = require('crypto');
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
-db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);")
+db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
@@ -42,10 +42,8 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 		});
 	}));
 	app.use(function(request, response, next) {
-		if (request.user == null && request.path.indexOf('/login') !== 0) {
+		if (!request.user && request.path.indexOf('/login') !== 0)
 			response.redirect('/login');
-			return;
-		}
 		next();
 	});
 }
@@ -58,12 +56,16 @@ app.use(express.static(__dirname + '/static/'));
 app.post('/upload/', function(request, response) {
 	var fileBuffer = new Buffer("", 'binary');
 	request.on('data', function (postDataChunk) {
-		var inBuffer = new Buffer(postDataChunk, 'binary')
-		fileBuffer = Buffer.concat([fileBuffer, inBuffer])
+		var inBuffer = new Buffer(postDataChunk, 'binary');
+		fileBuffer = Buffer.concat([fileBuffer, inBuffer]);
 	});
 
 	request.on('end', function () {
-		if (fileBuffer.length <= 0) { console.error("serveUploadChunks: fileBuffer empty"); response.statusCode = 431; response.end(); return false; }
+		if (fileBuffer.length <= 0) {
+			console.error("serveUploadChunks: fileBuffer empty");
+			response.status(431).end();
+			return false;
+		}
 
 		var uuid              = request.query.uuid;
 		var chunkID           = request.query.chunkIndex;
@@ -89,7 +91,7 @@ app.post('/upload/', function(request, response) {
 		response.statusCode = 200;
 		response.end();
 
-		console.log(remoteAddress,'uploaded',fileName,chunkID)
+		console.log(remoteAddress,'uploaded',fileName,chunkID);
 	});
 
 });
@@ -99,7 +101,7 @@ app.get('/d/:fileName/', function (request, response) {
 
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
 	db.get(query, [sha], function(err, row) {
-		if (null == row || null == row.fileName) {
+		if (row === undefined || row.fileName === undefined) {
 			console.error('ERROR: Unknown hash, "' + sha + '"');
 			response.status(404).end();
 			return false;
@@ -135,7 +137,7 @@ app.get('/d/:fileName/', function (request, response) {
 		}
 
 	});
-})
+});
 
 app.post('/merge/', function (request, response) {
 	var uuid              = request.query.uuid;
@@ -156,30 +158,28 @@ app.post('/merge/', function (request, response) {
 	var fileList = [];
 	var fileSize = 0;
 	db.all(query, [uuid], function(err, rows) {
-		for (r in rows) {
-			row = rows[r];
+		rows.forEach(function(row) {
 			var chunkFileName = row.filename;
 
 			chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
 			result_file.write(chunkData);
 			fileSize += chunkData.length;
 			fileList.push(config.upload_dir+'/pending/'+chunkFileName);
-		}
-
-		result_file.end(function() {
-			for (i in fileList) {
-				thisFile = fileList[i];
-				fs.unlink(thisFile, function (err) {
-					if (err) throw err;
-				});
-			}
 		});
 
-		var stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
+		result_file.end(function() {
+			fileList.forEach(function(file) {
+				fs.unlink(file, function (err) {
+					if (err) throw err;
+				});
+			});
+		});
+		var stmt;
+		stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
 		stmt.run(uuid);
 		stmt.finalize();
 
-		var stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
+		stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
 		stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress);
 		stmt.finalize();
 
@@ -194,22 +194,21 @@ app.get('/c/:collectionID', function (request, response) {
 	var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
 	db.all(query, [collectionID], function(err, rows) {
 		if(rows) {
-			files = [];
-			for (r in rows) {
-				row = rows[r];
-				files.push({fileName:row.fileName,sha:row.sha,fileSize:row.fileSize});
-			}
+			var files = rows.map(function(row) {
+				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize};
+			});
+
 			response.writeHead(200, "text/html");
 			response.end(JSON.stringify(files));
-		} else
+		} else {
 			response.status(404).end();
 			return false;
+		}
 	});
 });
 
 var server = app.listen(config.port, config.ip, function () {
-  var host = server.address().address
-  var port = server.address().port
-})
-
-console.log("simple-file-sharer started on "+config.ip+":"+config.port);
+	var host = server.address().address;
+	var port = server.address().port;
+	console.log("simple-file-sharer started on "+host+":"+port);
+});
