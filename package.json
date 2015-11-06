@@ -5,6 +5,8 @@
   "main": "index.js",
   "directories": {},
   "dependencies": {
+    "asyncawait": "^1.0.1",
+    "bluebird": "^3.0.5",
     "body-parser": "~1.10.2",
     "crypto": "0.0.3",
     "express": "~4.11.1",

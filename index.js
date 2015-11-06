@@ -1,12 +1,18 @@
-var express    = require('express');
-var app 	   = express();
-
-var config 	 = require('./config');
-var sqlite   = require('sqlite3').verbose();
-var db 		 = new sqlite.Database(config.db_name);
+var async = require("asyncawait/async");
+var await = require("asyncawait/await");
 var fs 		 = require('fs');
 var mime     = require('mime');
 var crypto   = require('crypto');
+
+var express    = require('express');
+var app 	   = express();
+
+var Bluebird = require('bluebird');
+var sqlite = Bluebird.promisifyAll(require('sqlite3'));
+
+var config 	 = require('./config');
+
+var db 		 = new sqlite.Database(config.db_name);
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
@@ -51,6 +57,21 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 
 
 app.use(express.static(__dirname + '/static/'));
+
+
+var shortenHash = function(hash) {
+	return new Promise(function (resolve, reject) {
+		for(var i=4; i<hash.length; i++) {
+			var dbres = await(db.getAsync("SELECT count(*) c FROM uploaded_files WHERE sha=?", [hash.substr(0,i)]));
+			if (dbres.c === 0) {
+				resolve(hash.substr(0,i));
+				break;
+			}
+
+		}
+		resolve(hash);
+	});
+};
 
 
 app.post('/upload/', function(request, response) {
@@ -139,19 +160,21 @@ app.get('/d/:fileName/', function (request, response) {
 	});
 });
 
-app.post('/merge/', function (request, response) {
+app.post('/merge/', async(function (request, response) {
 	var uuid              = request.query.uuid;
 	var chunkID           = request.query.chunkIndex;
 	var remoteAddress     = request.connection.remoteAddress;
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 
-	var fileName          = crypto.createHash('sha256').update(
+	var fileName      = crypto.createHash('sha256').update(
 								originalFileName +
 								(new Date().getTime()) +
 								config.secret +
 								remoteAddress
 							).digest("hex");
+	if (config.short_hash)
+		fileName = await(shortenHash(fileName));
 
 	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
 	var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
@@ -187,7 +210,7 @@ app.post('/merge/', function (request, response) {
 		response.statusCode = 200;
 		response.end();
 	});
-});
+}));
 
 app.get('/c/:collectionID', function (request, response) {
 	var collectionID = request.params.collectionID;
