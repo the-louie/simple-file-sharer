@@ -57,8 +57,7 @@ function uploadChunk (chunk) {
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4) {
             if (xhr.status != 200) {
-                self.postMessage({action:"FAIL", fileID:self.currentFileID})
-                //console.error('Request failed: '+xhr.status + " " + xhr.responseText);
+                self.postMessage({action:"FAIL", fileID:self.currentFileID});
                 return false;
             }
 
@@ -70,7 +69,7 @@ function uploadChunk (chunk) {
 
             // iterate through chunkList and check if all values are
             // set to 3 (=done).
-            for (i in self.chunkList) {
+            for (var i in self.chunkList) {
                 if (self.chunkList[i] != 3) { allDone = false; break; }
             }
 
@@ -82,26 +81,26 @@ function uploadChunk (chunk) {
                 xhrMerge.onreadystatechange = function (e) {
                     if (xhrMerge.readyState == 4) {
                         if (xhrMerge.status != 200) {
-                            self.postMessage({action:"FAIL", fileID:self.currentFileID})
-                            //console.error('Merge failed: '+xhrMerge.status+' '+xhrMerge.responseText);
+                            self.postMessage({action:"FAIL", fileID:self.currentFileID});
                         } else {
                             // report back that upload of file was successful!
-                            self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:JSON.parse(xhrMerge.responseText).fileName})
+                            self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:JSON.parse(xhrMerge.responseText).fileName});
                         }
                     }
-                }
+                };
 
                 xhrMerge.send();
             }
         }
-    }
-
-    xhr.upload.onprogress = function(e) {
-        //if (e.lengthComputable) self.postMessage(Math.round(100 / e.total * e.loaded)); //this doesn't work o.O
-        self.postMessage({action:"PROGRESS",fileID:self.currentFileID, sent:(parseFloat(self.chunksSent+1)/self.chunkCount)});
     };
 
-
+    xhr.upload.onprogress = function(e) {
+        self.postMessage({
+            action:"PROGRESS",
+            fileID:self.currentFileID,
+            sent:(parseFloat(self.chunksSent+1)/self.chunkCount)}
+        );
+    };
 
     xhr.open("POST", "/upload?chunkIndex=" + self.chunkIndex + "&uuid=" + self.uuid);
     self.chunkList[self.chunkIndex] = 2;
@@ -109,7 +108,7 @@ function uploadChunk (chunk) {
 }
 
 self.onmessage = function(e, buf) {
-    const BYTES_PER_CHUNK = 1024 * 1024; // * 32;
+    var BYTES_PER_CHUNK = 1024 * 1024; // * 32;
 
     var blob = e.data.file,
         start = 0;
