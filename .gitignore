@@ -3,3 +3,4 @@ uploads/*
 !.placeholder
 !.placeholder
 .DS_Store
+config.js
