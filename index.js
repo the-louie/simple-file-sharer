@@ -75,6 +75,15 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 }
 // end auth stuff
 
+app.use(function(request, response, next) {
+	if (config.surl && request.headers.host != (config.surl + ':' + config.port)) {
+		var rdr = 'http://'+config.surl + ':' + (request.app.settings.port || config.port || '80') + (request.path || '/');
+		response.redirect(rdr);
+	} else {
+		next();
+	}
+});
+
 
 app.use(express.static(__dirname + '/static/'));
 
