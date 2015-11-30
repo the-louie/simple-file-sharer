@@ -8,7 +8,12 @@ var _ 		 = require('lodash');
 var express    = require('express');
 var app 	   = express();
 
+var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
+
 var config;
+
+
+
 try {
 	config 	 = require('./config.json');
 } catch (e) {
@@ -24,7 +29,9 @@ try {
 		"static_dir": "./static",
 		"db_name": "./memory.db",
 		"secret": "rbDNSGCTdvDacGGvR gz7FbXzZrhhgp3BL6bIgNuGxGjve3U072Z7WzOwdeSSevC",
-		"short_hash": true,
+		"randomId": true,
+		// "hashId": false,
+		// "short_hash": true,
 	};
 }
 
@@ -37,6 +44,7 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOI
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
 
 var secret = crypto.createHash('sha256').update(config.secret+(new Date().getTime())).digest("hex");
+
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
@@ -87,8 +95,45 @@ app.use(function(request, response, next) {
 
 app.use(express.static(__dirname + '/static/'));
 
+function safeRandomId(length) {
+	return new Promise(function(resolve, reject) {
+		if (length === undefined)
+			length = 2;
+		else if (length > 64)
+			resolve(false);
 
-var shortenHash = function(hash) {
+		var id = crypto
+			.randomBytes(length)
+			.map(function(c) {
+				return validChars[c % validChars.length];
+			});
+
+		var dbres = await(db.getAsync("SELECT count(*) c FROM uploaded_files WHERE sha=?", [id]));
+
+		if (dbres.c === 0)
+			resolve(id);
+		else
+			resolve(await(safeRandomId(length + 1)));
+
+	});
+}
+
+function hashId(originalFileName, remoteAddress) {
+	var result = crypto
+		.createHash('sha256')
+		.update(originalFileName)
+		.update(new Date().getTime())
+		.update(config.secret)
+		.update(remoteAddress)
+		.digest("hex");
+
+	if (config.short_hash)
+		result = await(shortenHash(result));
+
+	return result;
+}
+
+function shortenHash(hash) {
 	return new Promise(function (resolve, reject) {
 		for(var i=4; i<hash.length; i++) {
 			var dbres = await(db.getAsync("SELECT count(*) c FROM uploaded_files WHERE sha=?", [hash.substr(0,i)]));
@@ -98,9 +143,9 @@ var shortenHash = function(hash) {
 			}
 
 		}
-		resolve(hash);
+		resolve(false);
 	});
-};
+}
 
 
 app.post('/upload/', function(request, response) {
@@ -196,14 +241,15 @@ app.post('/merge/', async(function (request, response) {
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 
-	var fileName      = crypto.createHash('sha256').update(
-								originalFileName +
-								(new Date().getTime()) +
-								config.secret +
-								remoteAddress
-							).digest("hex");
-	if (config.short_hash)
-		fileName = await(shortenHash(fileName));
+	var fileName;
+	if (randomId)
+		fileName 		  = await(safeRandomId());
+	else
+		fileName  	      = hashId(originalFileName, remoteAddress);
+
+	if (!fileName)
+		response.status(500).end("Failed to create filename");
+
 
 	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
 	var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
