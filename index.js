@@ -122,7 +122,7 @@ function hashId(originalFileName, remoteAddress) {
 	var result = crypto
 		.createHash('sha256')
 		.update(originalFileName)
-		.update(new Date().getTime())
+		.update(new Date().getTime().toString())
 		.update(config.secret)
 		.update(remoteAddress)
 		.digest("hex");
@@ -242,7 +242,7 @@ app.post('/merge/', async(function (request, response) {
 	var collectionID      = request.query.collectionID;
 
 	var fileName;
-	if (randomId)
+	if (config.randomId)
 		fileName 		  = await(safeRandomId());
 	else
 		fileName  	      = hashId(originalFileName, remoteAddress);
