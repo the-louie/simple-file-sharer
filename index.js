@@ -1,11 +1,11 @@
-var async = require("asyncawait/async");
-var await = require("asyncawait/await");
-var fs 		 = require('fs');
-var mime     = require('mime');
-var crypto   = require('crypto');
-var _ 		 = require('lodash');
 
-var express    = require('express');
+import fs from "fs";
+import mime from "mime";
+import crypto from "crypto";
+import _ from "lodash";
+import express from "express";
+
+var currentPath = process.cwd();
 var app 	   = express();
 
 var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
@@ -35,9 +35,9 @@ try {
 	};
 }
 
-var Bluebird = require('bluebird');
-var sqlite = Bluebird.promisifyAll(require('sqlite3'));
-var db 		 = new sqlite.Database(config.db_name);
+//var Bluebird = require('bluebird');
+import sqlite from "sqlite3";
+var db 	   = new sqlite.Database(config.db_name);
 
 // Create table if it doesn't already exist.
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
@@ -54,7 +54,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 
 	app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
 	app.get('/login', function(request, response) {
-	  response.sendFile(__dirname + '/static/login.html');
+	  response.sendFile(currentPath + '/static/login.html');
 	});
 	app.use(passport.initialize());
 	app.use(passport.session());
@@ -93,32 +93,29 @@ app.use(function(request, response, next) {
 });
 
 
-app.use(express.static(__dirname + '/static/'));
+app.use(express.static(currentPath + '/static/'));
 
-function safeRandomId(length) {
-	return new Promise(function(resolve, reject) {
-		if (length === undefined)
-			length = 2;
-		else if (length > 64)
-			resolve(false);
+const safeRandomId = async (length) => new Promise((resolve, _reject) => {
+	if (length === undefined)
+		length = 2;
+	else if (length > 64)
+		return resolve(false);
 
-		var id = crypto
-			.randomBytes(length)
-			.map(function(c) {
-				return validChars[c % validChars.length];
-			});
+	var id = crypto
+		.randomBytes(length)
+		.map(function(c) {
+			return validChars[c % validChars.length];
+		});
 
-		var dbres = await(db.getAsync("SELECT count(*) c FROM uploaded_files WHERE sha=?", [id]));
-
+	db.get("SELECT count(*) c FROM uploaded_files WHERE sha=?", [id], (err, dbres) => {
 		if (dbres.c === 0)
-			resolve(id);
+			return resolve(id);
 		else
-			resolve(await(safeRandomId(length + 1)));
-
+			return safeRandomId(length + 1);
 	});
-}
+})
 
-function hashId(originalFileName, remoteAddress) {
+async function hashId(originalFileName, remoteAddress) {
 	var result = crypto
 		.createHash('sha256')
 		.update(originalFileName)
@@ -128,7 +125,7 @@ function hashId(originalFileName, remoteAddress) {
 		.digest("hex");
 
 	if (config.short_hash)
-		result = await(shortenHash(result));
+		result = await shortenHash(result);
 
 	return result;
 }
@@ -136,14 +133,13 @@ function hashId(originalFileName, remoteAddress) {
 function shortenHash(hash) {
 	return new Promise(function (resolve, reject) {
 		for(var i=4; i<hash.length; i++) {
-			var dbres = await(db.getAsync("SELECT count(*) c FROM uploaded_files WHERE sha=?", [hash.substr(0,i)]));
-			if (dbres.c === 0) {
-				resolve(hash.substr(0,i));
-				break;
-			}
-
+			db.get("SELECT count(*) c FROM uploaded_files WHERE sha=?", [hash.substr(0,i)], (err, dbres) => {
+				if (dbres.c === 0) {
+					return resolve(hash.substr(0,i));
+				}
+			});
 		}
-		resolve(false);
+		return resolve(false);
 	});
 }
 
@@ -202,7 +198,7 @@ app.get('/d/:fileName/', function (request, response) {
 			return false;
 		}
 
-		var fileName = __dirname + config.upload_dir.replace(/^\./,'')+'/'+sha;
+		var fileName = currentPath + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
 			console.error('ERROR: No such file "' + fileName + '"');
 			response.status(404).end();
@@ -234,7 +230,8 @@ app.get('/d/:fileName/', function (request, response) {
 	});
 });
 
-app.post('/merge/', async(function (request, response) {
+// FIXME: async
+app.post('/merge/', async function (request, response) {
 	var uuid              = request.query.uuid;
 	var chunkID           = request.query.chunkIndex;
 	var remoteAddress     = request.connection.remoteAddress;
@@ -243,7 +240,7 @@ app.post('/merge/', async(function (request, response) {
 
 	var fileName;
 	if (config.randomId)
-		fileName 		  = await(safeRandomId());
+		fileName 		  = await safeRandomId();
 	else
 		fileName  	      = hashId(originalFileName, remoteAddress);
 
@@ -285,7 +282,7 @@ app.post('/merge/', async(function (request, response) {
 		response.statusCode = 200;
 		response.end();
 	});
-}));
+});
 
 app.get('/c/:collectionID', function (request, response) {
 	var collectionID = request.params.collectionID;

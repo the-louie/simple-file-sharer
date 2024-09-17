@@ -4,3 +4,4 @@ uploads/*
 !.placeholder
 .DS_Store
 config.js
+memory.db
