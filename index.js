@@ -4,17 +4,16 @@ import mime from "mime";
 import crypto from "crypto";
 import _ from "lodash";
 import express from "express";
-import bodyParser from "body-parser";
+import session from "express-session";
+import passport from "passport";
+import passportLocal from "passport-local";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
+const LocalStrategy = passportLocal.Strategy;
 
 var currentPath = process.cwd();
 var app 	   = express();
-
-// Parse URL-encoded bodies (for form submissions)
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
 
 var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
 
@@ -56,16 +55,17 @@ var secret = crypto.createHash('sha256').update(config.secret+(new Date().getTim
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
-	var session = require('express-session');
-	var passport = require('passport');
-	var LocalStrategy = require('passport-local').Strategy;
-
 	app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
+	app.use(passport.initialize());
+	app.use(passport.session());
+
+	// Setup body parser only for login route (after session/passport setup)
+	app.use('/login', express.urlencoded({ extended: false }));
+	app.use('/login', express.json());
+
 	app.get('/login', function(request, response) {
 	  response.sendFile(currentPath + '/static/login.html');
 	});
-	app.use(passport.initialize());
-	app.use(passport.session());
 	app.post('/login',
 	  passport.authenticate('local', {
 		successRedirect: '/',
@@ -113,13 +113,16 @@ const safeRandomId = async (length) => new Promise((resolve, _reject) => {
 		.randomBytes(length)
 		.map(function(c) {
 			return validChars[c % validChars.length];
-		});
+		})
+		.join('');
 
 	db.get("SELECT count(*) c FROM uploaded_files WHERE sha=?", [id], (err, dbres) => {
+		if (err)
+			return resolve(false);
 		if (dbres.c === 0)
 			return resolve(id);
 		else
-			return safeRandomId(length + 1);
+			safeRandomId(length + 1).then(resolve);
 	});
 })
 
@@ -152,10 +155,10 @@ function shortenHash(hash) {
 }
 
 
-app.post('/upload/', function(request, response) {
-	var fileBuffer = new Buffer("", 'binary');
+app.post('/upload/', function(request, response) {
+	var fileBuffer = Buffer.from("", 'binary');
 	request.on('data', function (postDataChunk) {
-		var inBuffer = new Buffer(postDataChunk, 'binary');
+		var inBuffer = Buffer.from(postDataChunk, 'binary');
 		fileBuffer = Buffer.concat([fileBuffer, inBuffer]);
 	});
 
@@ -168,7 +171,7 @@ app.post('/upload/', function(request, response) {
 
 		var uuid              = request.query.uuid;
 		var chunkID           = request.query.chunkIndex;
-		var remoteAddress     = request.connection.remoteAddress;
+		var remoteAddress     = request.ip;
 
 		var fileName          = crypto.createHash('sha256').update(
 									chunkID +
@@ -182,7 +185,7 @@ app.post('/upload/', function(request, response) {
 		stmt.finalize();
 
 		// save chunk to file
-		chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
+		var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
 		chunkFile.write(fileBuffer);
 		chunkFile.end();
 
@@ -226,7 +229,7 @@ app.get('/d/:fileName/', function (request, response) {
 			    }
 			});
 		} else {
-			console.log(request.connection.remoteAddress,'downloading" ' + fileName + '"');
+			console.log(request.ip,'downloading" ' + fileName + '"');
 			response.download(fileName, realFileName, function(err) {
 			    if (err) {
 			      console.log(err);
@@ -242,7 +245,7 @@ app.get('/d/:fileName/', function (request, response) {
 app.post('/merge/', async function (request, response) {
 	var uuid              = request.query.uuid;
 	var chunkID           = request.query.chunkIndex;
-	var remoteAddress     = request.connection.remoteAddress;
+	var remoteAddress     = request.ip;
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 
@@ -250,10 +253,12 @@ app.post('/merge/', async function (request, response) {
 	if (config.randomId)
 		fileName 		  = await safeRandomId();
 	else
-		fileName  	      = hashId(originalFileName, remoteAddress);
+		fileName  	      = await hashId(originalFileName, remoteAddress);
 
-	if (!fileName)
+	if (!fileName) {
 		response.status(500).end("Failed to create filename");
+		return;
+	}
 
 
 	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
@@ -264,7 +269,7 @@ app.post('/merge/', async function (request, response) {
 		rows.forEach(function(row) {
 			var chunkFileName = row.filename;
 
-			chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
+			var chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
 			result_file.write(chunkData);
 			fileSize += chunkData.length;
 			fileList.push(config.upload_dir+'/pending/'+chunkFileName);
