@@ -63,13 +63,19 @@ function uploadChunk (chunk) {
 
             self.chunksSent++;
 
-            var replyChunkIndex = parseInt(JSON.parse(xhr.responseText).chunk);
-            self.chunkList[replyChunkIndex] = 3;
+            try {
+                var replyChunkIndex = parseInt(JSON.parse(xhr.responseText).chunk);
+                self.chunkList[replyChunkIndex] = 3;
+            } catch (e) {
+                console.error("Failed to parse chunk response:", e);
+                self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                return false;
+            }
             var allDone = true;
 
             // iterate through chunkList and check if all values are
             // set to 3 (=done).
-            for (var i in self.chunkList) {
+            for (var i = 0; i < self.chunkList.length; i++) {
                 if (self.chunkList[i] != 3) { allDone = false; break; }
             }
 
@@ -81,12 +87,24 @@ function uploadChunk (chunk) {
                 xhrMerge.onreadystatechange = function (e) {
                     if (xhrMerge.readyState == 4) {
                         if (xhrMerge.status != 200) {
+                            console.error("Merge failed with status:", xhrMerge.status);
                             self.postMessage({action:"FAIL", fileID:self.currentFileID});
                         } else {
                             // report back that upload of file was successful!
-                            self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:JSON.parse(xhrMerge.responseText).fileName});
+                            try {
+                                var response = JSON.parse(xhrMerge.responseText);
+                                self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:response.fileName});
+                            } catch (e) {
+                                console.error("Failed to parse merge response:", e);
+                                self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                            }
                         }
                     }
+                };
+
+                xhrMerge.onerror = function() {
+                    console.error("Network error during merge");
+                    self.postMessage({action:"FAIL", fileID:self.currentFileID});
                 };
 
                 xhrMerge.send();
@@ -100,6 +118,11 @@ function uploadChunk (chunk) {
             fileID:self.currentFileID,
             sent:(parseFloat(self.chunksSent+1)/self.chunkCount)}
         );
+    };
+
+    xhr.onerror = function() {
+        console.error("Network error during chunk upload");
+        self.postMessage({action:"FAIL", fileID:self.currentFileID});
     };
 
     xhr.open("POST", "/upload?chunkIndex=" + self.chunkIndex + "&uuid=" + self.uuid);
@@ -122,14 +145,14 @@ self.onmessage = function(e, buf) {
     self.currentFileID = e.data.fileID;
     self.chunkList = Array(self.chunkCount);
 
-    for (i=0; i++; i<self.chunkCount) { self.chunkList[i] = 0; }
+    for (var i = 0; i < self.chunkCount; i++) { self.chunkList[i] = 0; }
 
     while (start < blob.size) {
-        end = start + BYTES_PER_CHUNK;
+        var end = start + BYTES_PER_CHUNK;
         if (end > blob.size) end = blob.size;
 
         var chunk = blob.slice(start, end);
-        self.chunkList[chunkIndex] = 1;
+        self.chunkList[self.chunkIndex] = 1;
         uploadChunk(chunk);
 
         start = end;
