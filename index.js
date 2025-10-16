@@ -79,8 +79,6 @@ var db 	   = new sqlite.Database(config.db_name);
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
 
-var secret = crypto.createHash('sha256').update(config.secret+(new Date().getTime())).digest("hex");
-
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
