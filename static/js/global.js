@@ -278,7 +278,7 @@ function humanFileSize(bytes, si) {
         if ($("#additional-upload-section").length === 0) {
             var additionalSection = $(
                 '<div id="additional-upload-section" style="' +
-                'height: 90px; ' +
+                'height: 144px; ' +
                 'background-color: #f8f9fa; ' +
                 'border: 2px dashed #bdb; ' +
                 'border-radius: 8px; ' +
@@ -289,14 +289,24 @@ function humanFileSize(bytes, si) {
                 'text-align: center; ' +
                 'color: #8c8; ' +
                 'font-family: Arial, sans-serif; ' +
-                'font-size: 1.2em;">' +
+                'font-size: 0.9em; ' +
+                'cursor: pointer;">' +
                 '<div>' +
-                'Want to upload more files? ' +
-                '<a href="/" style="color: #8c8; text-decoration: underline; font-weight: bold;">Click here to start over</a>' +
+                'Want to upload more files?<br/>' +
+                'Drop files here to add more' +
                 '</div>' +
                 '</div>'
             );
             $("#dropzone").append(additionalSection);
+
+            // Make the additional section a drop zone using jQuery for consistency
+            additionalSection.on("dragenter", noopHandler);
+            additionalSection.on("dragexit", noopHandler);
+            additionalSection.on("dragover", noopHandler);
+            additionalSection.on("drop", function(evt) {
+                noopHandler(evt);
+                handleNewFiles(evt.originalEvent.dataTransfer.files);
+            });
         }
     }
 
@@ -374,9 +384,12 @@ function humanFileSize(bytes, si) {
                     );
 
                     // Add click handler for modern clipboard API
-                    $(".file." + r + " .progress .resultcopy").off('click').on('click', function() {
-                        copyToClipboard(url, $(this));
-                    });
+                    // Use closure to capture the specific URL for this button
+                    (function(specificUrl) {
+                        $(".file." + r + " .progress .resultcopy").off('click').on('click', function() {
+                            copyToClipboard(specificUrl, $(this));
+                        });
+                    })(url);
                 }
             }
         };
