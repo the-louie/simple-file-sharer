@@ -108,7 +108,7 @@ function uploadChunk (chunk) {
 }
 
 self.onmessage = function(e, buf) {
-    var BYTES_PER_CHUNK = 1024 * 1024; // * 32;
+    var BYTES_PER_CHUNK = 1024 * 1024 * 4;
 
     var blob = e.data.file,
         start = 0;

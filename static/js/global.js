@@ -199,12 +199,27 @@ function humanFileSize(bytes, si) {
         waiting = 0,
         uuid = guid(),
         uuidurl = String(window.location.origin+'/?c='+uuid),
-        dropzone;
+        dropzone,
+        uploadsInProgress = false;
 
     var noopHandler = function (evt) {
         evt.stopPropagation();
         evt.preventDefault();
     };
+
+    // Add beforeunload warning for active uploads
+    function setupUploadWarning() {
+        window.addEventListener('beforeunload', function(e) {
+            if (uploadsInProgress) {
+                var message = 'You have uploads in progress. Are you sure you want to leave?';
+                e.returnValue = message; // For Chrome
+                return message; // For other browsers
+            }
+        });
+    }
+
+    // Initialize the upload warning
+    setupUploadWarning();
 
     function handleNewFiles(files) {
         var count = files.length;
@@ -236,6 +251,7 @@ function humanFileSize(bytes, si) {
             if (!locked) {
                 waiting -= count;
                 allFiles.push.apply(allFiles, files);
+                uploadsInProgress = true; // Set flag when uploads start
                 handleNextFile();
             }
         }
@@ -319,6 +335,7 @@ function humanFileSize(bytes, si) {
     function handleNextFile() {
         if (currentFileID >= allFiles.length) {
             locked = false;
+            uploadsInProgress = false; // Reset flag when all uploads complete
             // All files uploaded - show additional upload option
             showAdditionalUploadOption();
         } else {
@@ -327,7 +344,9 @@ function humanFileSize(bytes, si) {
               $(".file." + currentFileID + " .progressbar").css("display","none");
               $(".file." + currentFileID).css('background-color', '#DAA');
               $(".file." + currentFileID + " .progress .resulttextbox").val('Empty or invalid file.');
+              allFiles[currentFileID] = 1; // Mark as processed
               currentFileID++;
+              handleNextFile(); // Continue to next file or completion
               return false;
             }
 
@@ -365,6 +384,7 @@ function humanFileSize(bytes, si) {
 
     if (getUrlVars().c) {
         $("#dropzoneLabel").css('display','none');
+        uploadsInProgress = false; // Reset flag for collection view
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET","/c/"+getUrlVars().c,true);
         xmlhttp.onreadystatechange=function() {
@@ -399,6 +419,7 @@ function humanFileSize(bytes, si) {
     xmlhttp.send();
 
     } else {
+        uploadsInProgress = false; // Reset flag for fresh page load
         dropzone = $(".dropdiv")[0];
         dropzone.addEventListener("dragenter", noopHandler, false);
         dropzone.addEventListener("dragexit", noopHandler, false);
