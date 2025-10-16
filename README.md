@@ -11,11 +11,21 @@ Usage
 1. Clone the repository or download and extract the files.
 2. Install Node.js if you haven't already.
 3. Go to the directory where index.js etc. are.
-4. Edit config.js if you wish to change the upload directory or the port number.
-5. Run the application using `node index.js`
-6. Go to `http://<IP_ADDRESS>:<PORT>` where `<IP_ADDRESS>` is the IP address of the machine where the application is running and the `<PORT>` is the port number defined in `config.js` which is `8000` by default.
-7. Drag and drop files to the marked area to upload the files to the `upload_dir` defined in `config.js`.
-8. Copy the url from the dialog and send it to friends and enemies.
+4. **Set the required SESSION_SECRET environment variable:**
+   ```bash
+   export SESSION_SECRET=$(openssl rand -hex 32)
+   ```
+   Or create a `.env` file (not tracked in git):
+   ```bash
+   SESSION_SECRET=your_secret_key_here_min_32_chars
+   ```
+5. Edit config.json if you wish to change the upload directory or the port number.
+6. Run the application using `node index.js`
+7. Go to `http://<IP_ADDRESS>:<PORT>` where `<IP_ADDRESS>` is the IP address of the machine where the application is running and the `<PORT>` is the port number defined in `config.json` which is `9898` by default.
+8. Drag and drop files to the marked area to upload the files to the `upload_dir` defined in `config.json`.
+9. Copy the url from the dialog and send it to friends and enemies.
+
+**IMPORTANT**: Never commit `.env` or `config.json` with real secrets to version control!
 
 
 Docker Usage
@@ -26,19 +36,23 @@ Docker Usage
 
 ### Setup
 1. Clone the repository or download and extract the files.
-2. Copy `config_example.json` to `config.json`:
+2. **Generate a secure SESSION_SECRET:**
+   ```bash
+   openssl rand -hex 32
+   ```
+3. Copy `config_example.json` to `config.json`:
    ```bash
    cp config_example.json config.json
    ```
-3. Edit `config.json` to customize your configuration:
+4. Edit `config.json` to customize your configuration:
    - Change `"ip"` to `"0.0.0.0"` to allow external connections
    - Change `"db_name"` to `"/data/memory.db"` for database persistence
    - Customize port, authentication, etc. as needed
-4. Build and start the container:
+5. Build and start the container with SESSION_SECRET:
    ```bash
-   docker-compose up -d
+   SESSION_SECRET=your_generated_secret_here docker-compose up -d
    ```
-5. Access the application at `http://localhost:9898`
+6. Access the application at `http://localhost:9898`
 
 ### Docker Commands
 - **Stop the container**: `docker-compose stop`

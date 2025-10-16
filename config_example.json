@@ -4,7 +4,7 @@
 	"upload_dir": "./uploads",
 	"static_dir": "./static",
 	"db_name": "./memory.db",
-	"secret": "rbDNSGCTdvDacGGvR gz7FbXzZrhhgp3BL6bIgNuGxGjve3U072Z7WzOwdeSSevC",
 	"short_hash": true,
-	"authdetails": { "username": "default", "password": "secret" }
+	"authdetails": { "username": "admin", "password": "CHANGE_ME_PLEASE" },
+	"_comment": "Set SESSION_SECRET environment variable - do not store secrets in this file!"
 }

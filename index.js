@@ -28,13 +28,30 @@ function logError(...args) {
 
 var config;
 
+// Validate required environment variables
+if (!process.env.SESSION_SECRET) {
+	logError("\n!                                                  !");
+	logError("!      CRITICAL: SESSION_SECRET NOT SET            !");
+	logError("!                                                  !");
+	logError("!  Set SESSION_SECRET environment variable with    !");
+	logError("!  a strong random value (min 32 characters)       !");
+	logError("!                                                  !");
+	logError("!  Example: SESSION_SECRET=$(openssl rand -hex 32) !");
+	logError("!                                                  !\n");
+	process.exit(1);
+}
 
+// Validate secret strength
+if (process.env.SESSION_SECRET.length < 32) {
+	logError("SESSION_SECRET must be at least 32 characters long");
+	process.exit(1);
+}
 
 try {
 	config 	 = require('./config.json');
 } catch (e) {
 	log("\n!                                                  !");
-	log("!      WARNING! USING DEAFULT CONFIGURATION        !");
+	log("!      WARNING! USING DEFAULT CONFIGURATION        !");
 	log("!                                                  !");
 	log("!  Please copy config_example.json to config.json  !");
 	log("!  and modify it according to your needs.          !\n\n");
@@ -44,12 +61,14 @@ try {
 		"upload_dir": "./uploads",
 		"static_dir": "./static",
 		"db_name": "./memory.db",
-		"secret": "rbDNSGCTdvDacGGvR gz7FbXzZrhhgp3BL6bIgNuGxGjve3U072Z7WzOwdeSSevC",
 		"randomId": true,
 		// "hashId": false,
 		// "short_hash": true,
 	};
 }
+
+// Use environment variable for secret (never hard-code)
+config.secret = process.env.SESSION_SECRET;
 
 //var Bluebird = require('bluebird');
 import sqlite from "sqlite3";
