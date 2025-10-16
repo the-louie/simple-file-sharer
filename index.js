@@ -7,6 +7,7 @@ import express from "express";
 import session from "express-session";
 import passport from "passport";
 import passportLocal from "passport-local";
+import bcrypt from "bcrypt";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -104,12 +105,41 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	passport.serializeUser(function(user, done) { done(null, user); });
 	passport.deserializeUser(function(user, done) { done(null, user); });
 	passport.use(new LocalStrategy(function(username, password, done) {
-		process.nextTick(function() {
-			if (username == config.authdetails.username && password == config.authdetails.password)
+		// Verify username first
+		if (username !== config.authdetails.username) {
+			return done(null, false, { message: 'Invalid credentials' });
+		}
+
+		// Check if password is a bcrypt hash (starts with $2b$ or $2a$)
+		const isPasswordHashed = config.authdetails.password && 
+		                          (config.authdetails.password.startsWith('$2b$') || 
+		                           config.authdetails.password.startsWith('$2a$'));
+
+		if (isPasswordHashed) {
+			// Compare with hashed password
+			bcrypt.compare(password, config.authdetails.password, function(err, result) {
+				if (err) {
+					logError("Error comparing password:", err);
+					return done(err);
+				}
+				if (result) {
+					return done(null, config.authdetails.username);
+				} else {
+					return done(null, false, { message: 'Invalid credentials' });
+				}
+			});
+		} else {
+			// SECURITY WARNING: Plaintext password detected - log warning
+			logError("WARNING: Password in config.json is not hashed! Please use bcrypt to hash your password.");
+			logError("Run: node -e \"require('bcrypt').hash('your_password', 10).then(console.log)\"");
+			
+			// Still support plaintext for backward compatibility but warn
+			if (password === config.authdetails.password) {
 				return done(null, config.authdetails.username);
-			else
-				return done("No such user or password");
-		});
+			} else {
+				return done(null, false, { message: 'Invalid credentials' });
+			}
+		}
 	}));
 	app.use(function(request, response, next) {
 		// Allow access to login page, download URLs, and collection URLs without authentication

@@ -19,7 +19,13 @@ Usage
    ```bash
    SESSION_SECRET=your_secret_key_here_min_32_chars
    ```
-5. Edit config.json if you wish to change the upload directory or the port number.
+5. Edit config.json to customize your configuration:
+   - **Hash your password** (REQUIRED for security):
+     ```bash
+     node -e "require('bcrypt').hash('your_password', 10).then(console.log)"
+     ```
+     Copy the output (starts with `$2b$`) into the password field in config.json
+   - Change upload directory, port, etc. as needed
 6. Run the application using `node index.js`
 7. Go to `http://<IP_ADDRESS>:<PORT>` where `<IP_ADDRESS>` is the IP address of the machine where the application is running and the `<PORT>` is the port number defined in `config.json` which is `9898` by default.
 8. Drag and drop files to the marked area to upload the files to the `upload_dir` defined in `config.json`.

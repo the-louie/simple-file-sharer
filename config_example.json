@@ -5,6 +5,10 @@
 	"static_dir": "./static",
 	"db_name": "./memory.db",
 	"short_hash": true,
-	"authdetails": { "username": "admin", "password": "CHANGE_ME_PLEASE" },
-	"_comment": "Set SESSION_SECRET environment variable - do not store secrets in this file!"
+	"authdetails": { 
+		"username": "admin", 
+		"password": "$2b$10$EXAMPLE_BCRYPT_HASH_REPLACE_WITH_YOUR_HASHED_PASSWORD"
+	},
+	"_comment_secret": "Set SESSION_SECRET environment variable - do not store secrets in this file!",
+	"_comment_password": "Hash password with: node -e \"require('bcrypt').hash('yourpassword', 10).then(console.log)\""
 }
