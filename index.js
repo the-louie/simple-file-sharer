@@ -244,7 +244,7 @@ app.get('/d/:fileName/', function (request, response) {
 		var header = {};
 		var realFileName = row.fileName;
 
-		var mimeType = mime.lookup(realFileName);
+		var mimeType = mime.getType(realFileName);
 		if (mimeType.split('/')[0] == 'image') {
 			console.log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
 			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
