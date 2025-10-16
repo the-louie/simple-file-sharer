@@ -272,12 +272,42 @@ function humanFileSize(bytes, si) {
         handleNewFiles(evt.dataTransfer.files);
     }
 
+    // Function to show additional upload option when all files are done
+    function showAdditionalUploadOption() {
+        // Check if the additional upload section already exists
+        if ($("#additional-upload-section").length === 0) {
+            var additionalSection = $(
+                '<div id="additional-upload-section" style="' +
+                'height: 90px; ' +
+                'background-color: #f8f9fa; ' +
+                'border: 2px dashed #bdb; ' +
+                'border-radius: 8px; ' +
+                'margin-top: 20px; ' +
+                'display: flex; ' +
+                'align-items: center; ' +
+                'justify-content: center; ' +
+                'text-align: center; ' +
+                'color: #8c8; ' +
+                'font-family: Arial, sans-serif; ' +
+                'font-size: 1.2em;">' +
+                '<div>' +
+                'Want to upload more files? ' +
+                '<a href="/" style="color: #8c8; text-decoration: underline; font-weight: bold;">Click here to start over</a>' +
+                '</div>' +
+                '</div>'
+            );
+            $("#dropzone").append(additionalSection);
+        }
+    }
+
     /*
     Improved version with chunked uploading for large files
     */
     function handleNextFile() {
         if (currentFileID >= allFiles.length) {
             locked = false;
+            // All files uploaded - show additional upload option
+            showAdditionalUploadOption();
         } else {
             if (!allFiles[currentFileID].size || allFiles[currentFileID].size <= 0) {
               locked = false;
