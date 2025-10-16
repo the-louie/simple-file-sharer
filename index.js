@@ -142,15 +142,23 @@ async function hashId(originalFileName, remoteAddress) {
 }
 
 function shortenHash(hash) {
-	return new Promise(function (resolve, reject) {
-		for(var i=4; i<hash.length; i++) {
+	return new Promise(function (resolve, reject) {
+		function checkLength(i) {
+			if (i >= hash.length) {
+				return resolve(false);
+			}
+
 			db.get("SELECT count(*) c FROM uploaded_files WHERE sha=?", [hash.substr(0,i)], (err, dbres) => {
+				if (err) {
+					return resolve(false);
+				}
 				if (dbres.c === 0) {
 					return resolve(hash.substr(0,i));
 				}
+				checkLength(i + 1);
 			});
 		}
-		return resolve(false);
+		checkLength(4);
 	});
 }
 
@@ -261,16 +269,27 @@ app.post('/merge/', async function (request, response) {
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 
+	console.log("Merge request:", {uuid, chunkID, originalFileName, collectionID});
+
 	var fileName;
-	if (config.randomId)
-		fileName 		  = await safeRandomId();
-	else
-		fileName  	      = await hashId(originalFileName, remoteAddress);
+	try {
+		if (config.randomId)
+			fileName 		  = await safeRandomId();
+		else
+			fileName  	      = await hashId(originalFileName, remoteAddress);
+	} catch (err) {
+		console.error("Error generating filename:", err);
+		response.status(500).end("Error generating filename");
+		return;
+	}
 
 	if (!fileName) {
+		console.error("Failed to create filename");
 		response.status(500).end("Failed to create filename");
 		return;
 	}
+
+	console.log("Generated filename:", fileName);
 
 
 	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
