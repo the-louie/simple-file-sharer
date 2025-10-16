@@ -18,6 +18,37 @@ Usage
 8. Copy the url from the dialog and send it to friends and enemies.
 
 
+Docker Usage
+---
+### Prerequisites
+- Docker
+- Docker Compose
+
+### Setup
+1. Clone the repository or download and extract the files.
+2. Copy `config_example.json` to `config.json`:
+   ```bash
+   cp config_example.json config.json
+   ```
+3. Edit `config.json` to customize your configuration (port, upload directory, authentication, etc.).
+4. Build and start the container:
+   ```bash
+   docker-compose up -d
+   ```
+5. Access the application at `http://localhost:9898`
+
+### Docker Commands
+- **Stop the container**: `docker-compose stop`
+- **Start the container**: `docker-compose start`
+- **View logs**: `docker-compose logs -f`
+- **Rebuild after code changes**: `docker-compose up -d --build`
+- **Remove container and volumes**: `docker-compose down -v`
+
+### Notes
+- Configuration, uploaded files, and the database are persisted using volume mounts.
+- You can modify `config.json` without rebuilding the container; just restart it with `docker-compose restart`.
+
+
 License
 ---
 This application is released under the MIT License. See the `LICENSE` file for details.

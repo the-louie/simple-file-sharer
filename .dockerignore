@@ -1,0 +1,12 @@
+node_modules/
+uploads/
+memory.db
+config.json
+.git
+.gitignore
+README.md
+LICENSE
+test/
+tools/
+*.md
+

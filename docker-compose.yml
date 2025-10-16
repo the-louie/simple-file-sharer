@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  simple-file-sharer:
+    build: .
+    container_name: simple-file-sharer
+    ports:
+      - "9898:9898"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./uploads:/app/uploads
+      - ./memory.db:/app/memory.db
+    restart: unless-stopped
+
