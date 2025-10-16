@@ -3,5 +3,6 @@ uploads/*
 !.placeholder
 !.placeholder
 .DS_Store
-config.js
+config.json
+docker-compose.yml
 memory.db
