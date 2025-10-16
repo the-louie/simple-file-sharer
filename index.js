@@ -4,12 +4,17 @@ import mime from "mime";
 import crypto from "crypto";
 import _ from "lodash";
 import express from "express";
+import bodyParser from "body-parser";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
 
 var currentPath = process.cwd();
 var app 	   = express();
+
+// Parse URL-encoded bodies (for form submissions)
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
 
@@ -80,7 +85,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	}));
 	app.use(function(request, response, next) {
 		if (!request.user && request.path.indexOf('/login') !== 0)
-			response.redirect('/login');
+			return response.redirect('/login');
 		next();
 	});
 }
