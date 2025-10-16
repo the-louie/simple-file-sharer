@@ -52,24 +52,71 @@ function encode64 (input) {
 }
 
 function uploadChunk (chunk, chunkIndex) {
+    // Abort any previous XHR for this chunk (shouldn't happen in sequential mode, but safety check)
+    if (self.activeXHRs[chunkIndex]) {
+        console.log("Aborting previous XHR for chunk", chunkIndex);
+        self.activeXHRs[chunkIndex].abort();
+        self.activeXHRs[chunkIndex] = null;
+    }
+
     var xhr = new XMLHttpRequest();
+    self.activeXHRs[chunkIndex] = xhr;
+
+    var handleFailure = function(reason) {
+        // Clear the active XHR reference
+        self.activeXHRs[chunkIndex] = null;
+
+        self.chunkRetries[chunkIndex]++;
+        console.error(reason, "for chunk", chunkIndex, "- retry", self.chunkRetries[chunkIndex], "of", self.MAX_RETRIES);
+
+        if (self.chunkRetries[chunkIndex] >= self.MAX_RETRIES) {
+            console.error("Chunk", chunkIndex, "failed after", self.MAX_RETRIES, "retries - aborting upload");
+            self.postMessage({action:"FAIL", fileID:self.currentFileID});
+            return;
+        }
+
+        // Reset chunk status to retry
+        self.chunkList[chunkIndex] = 0;
+
+        // Retry with exponential backoff
+        var retryDelay = Math.min(1000 * Math.pow(2, self.chunkRetries[chunkIndex] - 1), 30000);
+        console.log("Retrying chunk", chunkIndex, "in", retryDelay, "ms");
+        setTimeout(function() {
+            uploadNextChunk();
+        }, retryDelay);
+    };
 
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4) {
             if (xhr.status != 200) {
-                console.error("Chunk upload failed with status:", xhr.status, "for chunk", chunkIndex);
-                self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                handleFailure("Chunk upload failed with status: " + xhr.status);
                 return false;
             }
 
-            self.chunksSent++;
-
             try {
                 var replyChunkIndex = parseInt(JSON.parse(xhr.responseText).chunk);
-                self.chunkList[replyChunkIndex] = 3;
+
+                // Verify server returned the correct chunk index
+                if (replyChunkIndex !== chunkIndex) {
+                    console.error("Server returned wrong chunk index:", replyChunkIndex, "expected:", chunkIndex);
+                    handleFailure("Server returned wrong chunk index");
+                    return false;
+                }
+
+                // Clear the active XHR reference using the parameter chunkIndex, not server response
+                self.activeXHRs[chunkIndex] = null;
+
+                // Only increment chunksSent if this chunk wasn't already completed
+                // (handles retry case where chunk might have been counted before)
+                if (self.chunkList[chunkIndex] !== 3) {
+                    self.chunksSent++;
+                }
+
+                self.chunkList[chunkIndex] = 3;
+                // Reset retry count on success
+                self.chunkRetries[chunkIndex] = 0;
             } catch (e) {
-                console.error("Failed to parse chunk response:", e, "for chunk", chunkIndex);
-                self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                handleFailure("Failed to parse chunk response: " + e);
                 return false;
             }
 
@@ -87,13 +134,17 @@ function uploadChunk (chunk, chunkIndex) {
     };
 
     xhr.onerror = function() {
-        console.error("Network error during chunk upload for chunk", chunkIndex);
-        self.postMessage({action:"FAIL", fileID:self.currentFileID});
+        handleFailure("Network error during chunk upload");
     };
 
     xhr.ontimeout = function() {
-        console.error("Timeout during chunk upload for chunk", chunkIndex);
-        self.postMessage({action:"FAIL", fileID:self.currentFileID});
+        handleFailure("Timeout during chunk upload");
+    };
+
+    xhr.onabort = function() {
+        // XHR was aborted - don't treat as failure, just cleanup
+        console.log("XHR aborted for chunk", chunkIndex);
+        self.activeXHRs[chunkIndex] = null;
     };
 
     xhr.open("POST", "/upload?chunkIndex=" + chunkIndex + "&uuid=" + self.uuid);
@@ -172,7 +223,7 @@ function uploadNextChunk() {
 }
 
 self.onmessage = function(e) {
-    self.BYTES_PER_CHUNK = 1024 * 1024 * 4;
+    self.BYTES_PER_CHUNK = 1024 * 1024 * 1; // 1MB chunks
     self.blob = e.data.file;
 
     self.chunksSent = 0;
@@ -182,10 +233,15 @@ self.onmessage = function(e) {
     self.uuid = guid();
     self.currentFileID = e.data.fileID;
     self.chunkList = Array(self.chunkCount);
+    self.chunkRetries = Array(self.chunkCount); // Track retry count per chunk
+    self.activeXHRs = Array(self.chunkCount); // Track active XHR per chunk
+    self.MAX_RETRIES = 10;
 
-    // Initialize all chunks to 0 (not started)
+    // Initialize all chunks to 0 (not started) and retries to 0
     for (var i = 0; i < self.chunkCount; i++) {
         self.chunkList[i] = 0;
+        self.chunkRetries[i] = 0;
+        self.activeXHRs[i] = null;
     }
 
     // Start uploading the first chunk
