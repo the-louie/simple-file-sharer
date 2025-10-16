@@ -39,11 +39,51 @@ function humanFileSize(bytes, si) {
 
     $(document).ready(function () {
 
-    var zclipCopy = function(url) { return url; };
-    var zclipAfterCopy = function(currentFileID) {
-        $(".file." + currentFileID + " .progress .resultcopy").attr("disabled", "disabled");
-        $(".file." + currentFileID + " .progress .resultcopy").val('copied');
-        return true;
+    // Modern clipboard API function
+    var copyToClipboard = function(text, buttonElement) {
+        if (navigator.clipboard && window.isSecureContext) {
+            // Use modern Clipboard API
+            navigator.clipboard.writeText(text).then(function() {
+                buttonElement.val('copied');
+                buttonElement.prop('disabled', true);
+                setTimeout(function() {
+                    buttonElement.val('copy');
+                    buttonElement.prop('disabled', false);
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy: ', err);
+                fallbackCopyTextToClipboard(text, buttonElement);
+            });
+        } else {
+            // Fallback for older browsers
+            fallbackCopyTextToClipboard(text, buttonElement);
+        }
+    };
+
+    // Fallback copy function for older browsers
+    var fallbackCopyTextToClipboard = function(text, buttonElement) {
+        var textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            var successful = document.execCommand('copy');
+            if (successful) {
+                buttonElement.val('copied');
+                buttonElement.prop('disabled', true);
+                setTimeout(function() {
+                    buttonElement.val('copy');
+                    buttonElement.prop('disabled', false);
+                }, 2000);
+            }
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textArea);
     };
 
     var allFiles = [],
@@ -103,11 +143,11 @@ function humanFileSize(bytes, si) {
         $(".file." + currentFileID + " .progress input").removeAttr('disabled');
         $(".file." + currentFileID + " .progress .resultcopy").val('copy');
         $(".file." + currentFileID + " .progress .resultcopy").removeAttr('disabled');
-        $(".file." + currentFileID + " .progress .resultcopy").zclip({
-            path:'/js/ZeroClipboard.swf',
-                copy: zclipCopy(url),
-                afterCopy: zclipAfterCopy(currentFileID),
-            });
+
+        // Add click handler for modern clipboard API
+        $(".file." + currentFileID + " .progress .resultcopy").off('click').on('click', function() {
+            copyToClipboard(url, $(this));
+        });
 
       return true;
     }
@@ -197,13 +237,10 @@ function humanFileSize(bytes, si) {
                         '</div>'
                     );
 
-                    $(".file." + r + " .progress .resultcopy").zclip(function(r, url) {
-                        return {
-                            path:'/js/ZeroClipboard.swf',
-                            copy: zclipCopy(url),
-                            afterCopy: zclipAfterCopy(currentFileID),
-                        };
-                    }(r, url));
+                    // Add click handler for modern clipboard API
+                    $(".file." + r + " .progress .resultcopy").off('click').on('click', function() {
+                        copyToClipboard(url, $(this));
+                    });
                 }
             }
         };
@@ -225,13 +262,9 @@ function humanFileSize(bytes, si) {
             '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />' +
         '</div>'
     );
-    $(".file.collection.resultcopy").zclip({
-        path: '/js/ZeroClipboard.swf',
-        copy:function(){return uuidurl;},
-        afterCopy: function(){
-            $(".file." + currentFileID + " .progress .resultcopy").val('copied');
-            return true;
-        }
+    // Add click handler for collection URL copy
+    $(".collection .resultcopy").off('click').on('click', function() {
+        copyToClipboard(uuidurl, $(this));
     });
 
   });
