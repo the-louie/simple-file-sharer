@@ -111,8 +111,8 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 		}
 
 		// Check if password is a bcrypt hash (starts with $2b$ or $2a$)
-		const isPasswordHashed = config.authdetails.password && 
-		                          (config.authdetails.password.startsWith('$2b$') || 
+		const isPasswordHashed = config.authdetails.password &&
+		                          (config.authdetails.password.startsWith('$2b$') ||
 		                           config.authdetails.password.startsWith('$2a$'));
 
 		if (isPasswordHashed) {
@@ -132,7 +132,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 			// SECURITY WARNING: Plaintext password detected - log warning
 			logError("WARNING: Password in config.json is not hashed! Please use bcrypt to hash your password.");
 			logError("Run: node -e \"require('bcrypt').hash('your_password', 10).then(console.log)\"");
-			
+
 			// Still support plaintext for backward compatibility but warn
 			if (password === config.authdetails.password) {
 				return done(null, config.authdetails.username);

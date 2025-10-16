@@ -5,8 +5,8 @@
 	"static_dir": "./static",
 	"db_name": "./memory.db",
 	"short_hash": true,
-	"authdetails": { 
-		"username": "admin", 
+	"authdetails": {
+		"username": "admin",
 		"password": "$2b$10$EXAMPLE_BCRYPT_HASH_REPLACE_WITH_YOUR_HASHED_PASSWORD"
 	},
 	"_comment_secret": "Set SESSION_SECRET environment variable - do not store secrets in this file!",
