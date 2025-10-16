@@ -181,17 +181,29 @@ app.post('/upload/', function(request, response) {
 
 		// save chunk to database
 		var stmt = db.prepare('INSERT INTO uploaded_chunks (uuid, filename, chunk_id) VALUES (?,?,?)');
-		stmt.run(uuid, fileName, chunkID);
-		stmt.finalize();
+		stmt.run(uuid, fileName, chunkID, function(err) {
+			if (err) {
+				console.error("Database error:", err);
+				response.status(500).end("Database error");
+				return;
+			}
+			stmt.finalize();
 
-		// save chunk to file
-		var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
-		chunkFile.write(fileBuffer);
-		chunkFile.end();
+			// save chunk to file
+			var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
+			chunkFile.write(fileBuffer);
+			chunkFile.end(function(err) {
+				if (err) {
+					console.error("File write error:", err);
+					response.status(500).end("File write error");
+					return;
+				}
 
-		response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
-		response.statusCode = 200;
-		response.end();
+				response.writeHead(200, {'Content-Type': 'application/json'});
+				response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
+				response.end();
+			});
+		});
 
 		console.log(remoteAddress,'uploaded',fileName,chunkID);
 	});
@@ -266,34 +278,61 @@ app.post('/merge/', async function (request, response) {
 	var fileList = [];
 	var fileSize = 0;
 	db.all(query, [uuid], function(err, rows) {
+		if (err) {
+			console.error("Database query error:", err);
+			response.status(500).end("Database query error");
+			return;
+		}
+
+		if (!rows || rows.length === 0) {
+			console.error("No chunks found for uuid:", uuid);
+			response.status(404).end("No chunks found");
+			return;
+		}
+
 		rows.forEach(function(row) {
 			var chunkFileName = row.filename;
 
-			var chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
-			result_file.write(chunkData);
-			fileSize += chunkData.length;
-			fileList.push(config.upload_dir+'/pending/'+chunkFileName);
+			try {
+				var chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
+				result_file.write(chunkData);
+				fileSize += chunkData.length;
+				fileList.push(config.upload_dir+'/pending/'+chunkFileName);
+			} catch (fileErr) {
+				console.error("Error reading chunk file:", fileErr);
+				response.status(500).end("Error reading chunk file");
+				return;
+			}
 		});
 
-		result_file.end(function() {
+		result_file.end(function() {
 			fileList.forEach(function(file) {
 				fs.unlink(file, function (err) {
-					if (err) throw err;
+					if (err) console.error("Error deleting chunk file:", err);
 				});
 			});
 		});
+
 		var stmt;
 		stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
-		stmt.run(uuid);
-		stmt.finalize();
+		stmt.run(uuid, function(err) {
+			if (err) console.error("Error deleting chunks:", err);
+			stmt.finalize();
 
-		stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
-		stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress);
-		stmt.finalize();
+			stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
+			stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(err) {
+				if (err) {
+					console.error("Error inserting file record:", err);
+					response.status(500).end("Error inserting file record");
+					return;
+				}
+				stmt.finalize();
 
-		response.write(JSON.stringify({'fileName':fileName}));
-		response.statusCode = 200;
-		response.end();
+				response.writeHead(200, {'Content-Type': 'application/json'});
+				response.write(JSON.stringify({'fileName':fileName}));
+				response.end();
+			});
+		});
 	});
 });
 
