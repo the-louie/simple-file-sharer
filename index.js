@@ -17,6 +17,15 @@ var app 	   = express();
 
 var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
 
+// Helper function to add ISO timestamp to console output
+function log(...args) {
+	console.log(new Date().toISOString(), ...args);
+}
+
+function logError(...args) {
+	console.error(new Date().toISOString(), ...args);
+}
+
 var config;
 
 
@@ -24,11 +33,11 @@ var config;
 try {
 	config 	 = require('./config.json');
 } catch (e) {
-	console.log("\n!                                                  !");
-	console.log("!      WARNING! USING DEAFULT CONFIGURATION        !");
-	console.log("!                                                  !");
-	console.log("!  Please copy config_example.json to config.json  !");
-	console.log("!  and modify it according to your needs.          !\n\n");
+	log("\n!                                                  !");
+	log("!      WARNING! USING DEAFULT CONFIGURATION        !");
+	log("!                                                  !");
+	log("!  Please copy config_example.json to config.json  !");
+	log("!  and modify it according to your needs.          !\n\n");
 	config = {
 		"ip": "localhost",
 		"port": 9898,
@@ -177,7 +186,7 @@ app.post('/upload/', function(request, response) {
 
 	request.on('end', function () {
 		if (fileBuffer.length <= 0) {
-			console.error("serveUploadChunks: fileBuffer empty");
+			logError("serveUploadChunks: fileBuffer empty");
 			response.status(431).end();
 			return false;
 		}
@@ -196,7 +205,7 @@ app.post('/upload/', function(request, response) {
 		var stmt = db.prepare('INSERT INTO uploaded_chunks (uuid, filename, chunk_id) VALUES (?,?,?)');
 		stmt.run(uuid, fileName, chunkID, function(err) {
 			if (err) {
-				console.error("Database error:", err);
+				logError("Database error:", err);
 				response.status(500).end("Database error");
 				return;
 			}
@@ -207,7 +216,7 @@ app.post('/upload/', function(request, response) {
 			chunkFile.write(fileBuffer);
 			chunkFile.end(function(err) {
 				if (err) {
-					console.error("File write error:", err);
+					logError("File write error:", err);
 					response.status(500).end("File write error");
 					return;
 				}
@@ -218,7 +227,7 @@ app.post('/upload/', function(request, response) {
 			});
 		});
 
-		console.log(remoteAddress,'uploaded',fileName,chunkID);
+		log(remoteAddress,'uploaded',fileName,chunkID);
 	});
 
 });
@@ -229,14 +238,14 @@ app.get('/d/:fileName/', function (request, response) {
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
 	db.get(query, [sha], function(err, row) {
 		if (row === undefined || row.fileName === undefined) {
-			console.error('ERROR: Unknown hash, "' + sha + '"');
+			logError('ERROR: Unknown hash, "' + sha + '"');
 			response.status(404).end();
 			return false;
 		}
 
 		var fileName = currentPath + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
-			console.error('ERROR: No such file "' + fileName + '"');
+			logError('ERROR: No such file "' + fileName + '"');
 			response.status(404).end();
 			return false;
 		}
@@ -246,18 +255,18 @@ app.get('/d/:fileName/', function (request, response) {
 
 		var mimeType = mime.getType(realFileName) || 'application/octet-stream';
 		if (mimeType && mimeType.split('/')[0] == 'image') {
-			console.log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
-			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
+			log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
+			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
 			    if (err) {
-			      console.log(err);
+			      logError(err);
 			      response.status(err.status).end();
 			    }
 			});
 		} else {
-			console.log(request.ip,'downloading" ' + fileName + '"');
+			log(request.ip,'downloading" ' + fileName + '"');
 			response.download(fileName, realFileName, function(err) {
 			    if (err) {
-			      console.log(err);
+			      logError(err);
 			      response.status(err.status).end();
 			    }
 			});
@@ -274,7 +283,7 @@ app.post('/merge/', async function (request, response) {
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 
-	console.log("Merge request:", {uuid, chunkID, originalFileName, collectionID});
+	log("Merge request:", {uuid, chunkID, originalFileName, collectionID});
 
 	var fileName;
 	try {
@@ -283,18 +292,18 @@ app.post('/merge/', async function (request, response) {
 		else
 			fileName  	      = await hashId(originalFileName, remoteAddress);
 	} catch (err) {
-		console.error("Error generating filename:", err);
+		logError("Error generating filename:", err);
 		response.status(500).end("Error generating filename");
 		return;
 	}
 
 	if (!fileName) {
-		console.error("Failed to create filename");
+		logError("Failed to create filename");
 		response.status(500).end("Failed to create filename");
 		return;
 	}
 
-	console.log("Generated filename:", fileName);
+	log("Generated filename:", fileName);
 
 
 	var query = "SELECT filename FROM uploaded_chunks WHERE uuid = ? ORDER BY chunk_id";
@@ -303,13 +312,13 @@ app.post('/merge/', async function (request, response) {
 	var fileSize = 0;
 	db.all(query, [uuid], function(err, rows) {
 		if (err) {
-			console.error("Database query error:", err);
+			logError("Database query error:", err);
 			response.status(500).end("Database query error");
 			return;
 		}
 
 		if (!rows || rows.length === 0) {
-			console.error("No chunks found for uuid:", uuid);
+			logError("No chunks found for uuid:", uuid);
 			response.status(404).end("No chunks found");
 			return;
 		}
@@ -323,7 +332,7 @@ app.post('/merge/', async function (request, response) {
 				fileSize += chunkData.length;
 				fileList.push(config.upload_dir+'/pending/'+chunkFileName);
 			} catch (fileErr) {
-				console.error("Error reading chunk file:", fileErr);
+				logError("Error reading chunk file:", fileErr);
 				response.status(500).end("Error reading chunk file");
 				return;
 			}
@@ -332,7 +341,7 @@ app.post('/merge/', async function (request, response) {
 		result_file.end(function() {
 			fileList.forEach(function(file) {
 				fs.unlink(file, function (err) {
-					if (err) console.error("Error deleting chunk file:", err);
+					if (err) logError("Error deleting chunk file:", err);
 				});
 			});
 		});
@@ -340,13 +349,13 @@ app.post('/merge/', async function (request, response) {
 		var stmt;
 		stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
 		stmt.run(uuid, function(err) {
-			if (err) console.error("Error deleting chunks:", err);
+			if (err) logError("Error deleting chunks:", err);
 			stmt.finalize();
 
 			stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
 			stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(err) {
 				if (err) {
-					console.error("Error inserting file record:", err);
+					logError("Error inserting file record:", err);
 					response.status(500).end("Error inserting file record");
 					return;
 				}
@@ -381,5 +390,5 @@ app.get('/c/:collectionID', function (request, response) {
 var server = app.listen(config.port, config.ip, function () {
 	var host = server.address().address;
 	var port = server.address().port;
-	console.log("simple-file-sharer started on http://"+host+":"+port);
+	log("simple-file-sharer started on http://"+host+":"+port);
 });
