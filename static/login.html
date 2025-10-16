@@ -1,18 +1,95 @@
+<!DOCTYPE html>
 <html>
-  <body>
-    <form action="/login" method="post">
-      <div>
-        <label>Username:</label>
-        <input type="text" name="username" />
-        <br/>
-      </div>
-      <div>
-        <label>Password:</label>
-        <input type="password" name="password" />
-      </div>
-      <div>
-        <input type="submit" value="Submit" />
-      </div>
-    </form>
-  </body>
+	<head>
+		<title>File sharer - Login</title>
+		<link rel="stylesheet" type="text/css" href="/css/style.css" />
+		<style>
+			.login-container {
+				background-color: #fdfffd;
+				border: 3px dashed #bdb;
+				border-radius: 8px;
+				margin: 50px auto;
+				padding: 40px;
+				width: 400px;
+				text-align: center;
+			}
+
+			.login-form {
+				margin: 20px 0;
+			}
+
+			.login-form div {
+				margin: 15px 0;
+			}
+
+			.login-form label {
+				display: block;
+				color: #8c8;
+				font-family: Arial, sans-serif;
+				font-size: 1.2em;
+				margin-bottom: 5px;
+			}
+
+			.login-form input[type="text"],
+			.login-form input[type="password"] {
+				width: 100%;
+				padding: 10px;
+				border: 2px solid #bdb;
+				border-radius: 4px;
+				font-size: 1em;
+				box-sizing: border-box;
+			}
+
+			.login-form input[type="text"]:focus,
+			.login-form input[type="password"]:focus {
+				outline: none;
+				border-color: #8c8;
+			}
+
+			.login-form input[type="submit"] {
+				background: #8c8;
+				color: #efe;
+				border: 1px solid #494;
+				border-radius: 3px;
+				padding: 10px 20px;
+				font-size: 1em;
+				font-weight: 700;
+				cursor: pointer;
+				margin-top: 20px;
+			}
+
+			.login-form input[type="submit"]:hover {
+				border-color: #909090;
+				color: #909090;
+			}
+
+			.login-title {
+				color: #8c8;
+				font-family: Arial, sans-serif;
+				font-size: 2em;
+				margin-bottom: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="login-container">
+			<div class="login-title">File Sharer Login</div>
+			<form action="/login" method="post" class="login-form">
+				<div>
+					<label for="username">Username:</label>
+					<input type="text" name="username" id="username" required />
+				</div>
+				<div>
+					<label for="password">Password:</label>
+					<input type="password" name="password" id="password" required />
+				</div>
+				<div>
+					<input type="submit" value="Login" />
+				</div>
+			</form>
+		</div>
+		<div id="footer">
+			Created by <a href="http://www.louie.se" title="Louie">Louie</a>.
+		</div>
+	</body>
 </html>

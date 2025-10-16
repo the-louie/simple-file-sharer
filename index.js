@@ -86,9 +86,9 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	app.use(function(request, response, next) {
 		// Allow access to login page, download URLs, and collection URLs without authentication
 		if (!request.user &&
-			request.path.indexOf('/login') !== 0 &&
-			request.path.indexOf('/d/') !== 0 &&
-			request.path.indexOf('/c/') !== 0) {
+			!request.path.startsWith('/login') &&
+			!request.path.startsWith('/d/') &&
+			!request.path.startsWith('/c/')) {
 			return response.redirect('/login');
 		}
 		next();
