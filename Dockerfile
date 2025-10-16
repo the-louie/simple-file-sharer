@@ -14,8 +14,8 @@ RUN npm ci --only=production
 COPY index.js ./
 COPY static ./static
 
-# Create upload directories
-RUN mkdir -p uploads/pending
+# Create upload and data directories
+RUN mkdir -p uploads/pending /data
 
 # Expose application port
 EXPOSE 9898

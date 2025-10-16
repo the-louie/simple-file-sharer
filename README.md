@@ -30,7 +30,10 @@ Docker Usage
    ```bash
    cp config_example.json config.json
    ```
-3. Edit `config.json` to customize your configuration (port, upload directory, authentication, etc.).
+3. Edit `config.json` to customize your configuration:
+   - Change `"ip"` to `"0.0.0.0"` to allow external connections
+   - Change `"db_name"` to `"/data/memory.db"` for database persistence
+   - Customize port, authentication, etc. as needed
 4. Build and start the container:
    ```bash
    docker-compose up -d
@@ -45,7 +48,11 @@ Docker Usage
 - **Remove container and volumes**: `docker-compose down -v`
 
 ### Notes
-- Configuration, uploaded files, and the database are persisted using volume mounts.
+- Configuration file must exist before starting the container (see setup step 2).
+- Set `"ip": "0.0.0.0"` in config.json to accept connections from outside the container.
+- Set `"db_name": "/data/memory.db"` in config.json to persist the database across container restarts.
+- Uploaded files are persisted in the `./uploads` directory.
+- The database is stored in a Docker volume named `simple-file-sharer_db-data`.
 - You can modify `config.json` without rebuilding the container; just restart it with `docker-compose restart`.
 
 

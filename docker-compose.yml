@@ -7,8 +7,11 @@ services:
     ports:
       - "9898:9898"
     volumes:
-      - ./config.json:/app/config.json
+      - ./config.json:/app/config.json:ro
       - ./uploads:/app/uploads
-      - ./memory.db:/app/memory.db
+      - db-data:/data
     restart: unless-stopped
+
+volumes:
+  db-data:
 

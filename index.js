@@ -4,6 +4,9 @@ import mime from "mime";
 import crypto from "crypto";
 import _ from "lodash";
 import express from "express";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 var currentPath = process.cwd();
 var app 	   = express();
@@ -16,7 +19,7 @@ var config;
 
 try {
 	config 	 = require('./config.json');
-} catch (e) {
+} catch (e) {
 	console.log("\n!                                                  !");
 	console.log("!      WARNING! USING DEAFULT CONFIGURATION        !");
 	console.log("!                                                  !");
