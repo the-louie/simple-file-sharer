@@ -8,6 +8,7 @@ import session from "express-session";
 import passport from "passport";
 import passportLocal from "passport-local";
 import bcrypt from "bcrypt";
+import rateLimit from "express-rate-limit";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -79,6 +80,31 @@ var db 	   = new sqlite.Database(config.db_name);
 db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
 
+// Rate limiting configuration
+const loginLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 5, // Limit each IP to 5 login requests per window
+	message: 'Too many login attempts, please try again after 15 minutes',
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 100, // Limit each IP to 100 upload requests per window
+	message: 'Too many upload requests, please try again after 15 minutes',
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+const downloadLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 200, // Limit each IP to 200 downloads per window
+	message: 'Too many download requests, please try again after 15 minutes',
+	standardHeaders: true,
+	legacyHeaders: false,
+	skip: (request) => !!request.user, // Authenticated users bypass rate limit
+});
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
@@ -94,6 +120,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	  response.sendFile(currentPath + '/static/login.html');
 	});
 	app.post('/login',
+	  loginLimiter, // Apply rate limiting to login attempts
 	  passport.authenticate('local', {
 		successRedirect: '/',
 		failureRedirect: '/login'
@@ -224,7 +251,7 @@ function shortenHash(hash) {
 }
 
 
-app.post('/upload/', function(request, response) {
+app.post('/upload/', uploadLimiter, function(request, response) {
 	var fileBuffer = Buffer.from("", 'binary');
 	request.on('data', function (postDataChunk) {
 		var inBuffer = Buffer.from(postDataChunk, 'binary');
@@ -279,7 +306,7 @@ app.post('/upload/', function(request, response) {
 
 });
 
-app.get('/d/:fileName/', function (request, response) {
+app.get('/d/:fileName/', downloadLimiter, function (request, response) {
 	var sha = request.params.fileName.replace(/\.[A-Za-z0-9]{3}$/,"");
 
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
@@ -323,7 +350,7 @@ app.get('/d/:fileName/', function (request, response) {
 });
 
 // FIXME: async
-app.post('/merge/', async function (request, response) {
+app.post('/merge/', uploadLimiter, async function (request, response) {
 	var uuid              = request.query.uuid;
 	var chunkID           = request.query.chunkIndex;
 	var remoteAddress     = request.ip;
