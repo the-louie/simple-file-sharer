@@ -212,6 +212,9 @@ function humanFileSize(bytes, si) {
             prevCountFiles = allFiles.length;
             //if ($("#dropzoneLabel").length !== 0) { $("#dropzone").html(''); }
 
+            // Remove additional upload section when new files are added
+            $("#additional-upload-section").remove();
+
             for (var i = prevCountFiles + waiting, j = 0;
                 i < prevCountFiles + files.length + waiting;
                 i++, j++ ) {
