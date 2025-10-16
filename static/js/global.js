@@ -41,9 +41,15 @@ function humanFileSize(bytes, si) {
 
     // Modern clipboard API function
     var copyToClipboard = function(text, buttonElement) {
+        console.log('Attempting to copy:', text);
+        console.log('Secure context:', window.isSecureContext);
+        console.log('Clipboard API available:', !!navigator.clipboard);
+
         if (navigator.clipboard && window.isSecureContext) {
+            console.log('Using modern Clipboard API');
             // Use modern Clipboard API
             navigator.clipboard.writeText(text).then(function() {
+                console.log('Clipboard API copy successful');
                 buttonElement.val('copied');
                 buttonElement.prop('disabled', true);
                 setTimeout(function() {
@@ -51,27 +57,50 @@ function humanFileSize(bytes, si) {
                     buttonElement.prop('disabled', false);
                 }, 2000);
             }).catch(function(err) {
-                console.error('Failed to copy: ', err);
+                console.error('Clipboard API failed:', err);
+                console.log('Falling back to execCommand method');
                 fallbackCopyTextToClipboard(text, buttonElement);
             });
         } else {
-            // Fallback for older browsers
+            if (!window.isSecureContext) {
+                console.warn('Not in secure context (HTTPS required for Clipboard API)');
+            }
+            if (!navigator.clipboard) {
+                console.warn('Clipboard API not available');
+            }
+            console.log('Using fallback method');
             fallbackCopyTextToClipboard(text, buttonElement);
         }
     };
 
     // Fallback copy function for older browsers
     var fallbackCopyTextToClipboard = function(text, buttonElement) {
+        console.log('Using fallback clipboard method');
         var textArea = document.createElement("textarea");
         textArea.value = text;
+
+        // Make textarea visible but off-screen
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
         textArea.style.top = "0";
-        textArea.style.left = "0";
-        textArea.style.position = "fixed";
+        textArea.style.width = "1px";
+        textArea.style.height = "1px";
+        textArea.style.opacity = "0";
+
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
+
+        // Use setSelectionRange for better compatibility
+        try {
+            textArea.setSelectionRange(0, 99999);
+        } catch (e) {
+            console.log('setSelectionRange not supported, using select()');
+        }
+
         try {
             var successful = document.execCommand('copy');
+            console.log('Fallback copy result:', successful);
             if (successful) {
                 buttonElement.val('copied');
                 buttonElement.prop('disabled', true);
@@ -79,10 +108,87 @@ function humanFileSize(bytes, si) {
                     buttonElement.val('copy');
                     buttonElement.prop('disabled', false);
                 }, 2000);
+            } else {
+                console.error('Fallback: document.execCommand("copy") returned false');
+                buttonElement.val('Copy failed');
+
+                // Add toast notification
+                var toast = $('<div class="copy-toast">Couldn\'t automatically copy the url, please copy manually</div>');
+                toast.css({
+                    'position': 'fixed',
+                    'top': '20px',
+                    'right': '20px',
+                    'background': '#ffc107',
+                    'color': '#000',
+                    'padding': '10px 15px',
+                    'border-radius': '4px',
+                    'z-index': '9999',
+                    'max-width': '300px',
+                    'box-shadow': '0 2px 10px rgba(0,0,0,0.1)',
+                    'font-family': 'Arial, sans-serif',
+                    'font-size': '14px'
+                });
+                $('body').append(toast);
+
+                // Make the textbox more prominent to guide user
+                var textbox = buttonElement.siblings('.resulttextbox');
+                textbox.css({
+                    'background-color': '#fff3cd',
+                    'border': '2px solid #ffc107',
+                    'font-weight': 'bold'
+                });
+
+                setTimeout(function() {
+                    buttonElement.val('copy');
+                    textbox.css({
+                        'background-color': '',
+                        'border': '',
+                        'font-weight': ''
+                    });
+                    toast.fadeOut(function() { toast.remove(); });
+                }, 4000); // Longer timeout to give user time to see the instruction
             }
         } catch (err) {
-            console.error('Fallback: Oops, unable to copy', err);
+            console.error('Fallback: document.execCommand("copy") failed:', err);
+            buttonElement.val('Copy failed');
+
+            // Add toast notification
+            var toast = $('<div class="copy-toast">Couldn\'t automatically copy the url, please copy manually</div>');
+            toast.css({
+                'position': 'fixed',
+                'top': '20px',
+                'right': '20px',
+                'background': '#ffc107',
+                'color': '#000',
+                'padding': '10px 15px',
+                'border-radius': '4px',
+                'z-index': '9999',
+                'max-width': '300px',
+                'box-shadow': '0 2px 10px rgba(0,0,0,0.1)',
+                'font-family': 'Arial, sans-serif',
+                'font-size': '14px'
+            });
+            $('body').append(toast);
+
+            // Make the textbox more prominent to guide user
+            var textbox = buttonElement.siblings('.resulttextbox');
+            textbox.css({
+                'background-color': '#fff3cd',
+                'border': '2px solid #ffc107',
+                'font-weight': 'bold'
+            });
+
+            setTimeout(function() {
+                buttonElement.val('copy');
+                textbox.css({
+                    'background-color': '',
+                    'border': '',
+                    'font-weight': ''
+                });
+                toast.fadeOut(function() { toast.remove(); });
+            }, 4000); // Longer timeout to give user time to see the instruction
         }
+
         document.body.removeChild(textArea);
     };
 
