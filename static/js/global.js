@@ -35,7 +35,7 @@ function humanFileSize(bytes, si) {
 function relativeTime(unixTimestamp) {
     var now = Math.floor(Date.now() / 1000);
     var diff = now - unixTimestamp;
-    
+
     if (diff < 60) return 'just now';
     if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
     if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
@@ -242,7 +242,7 @@ function relativeTime(unixTimestamp) {
                 if (data.enabled) {
                     var quotaText = '';
                     var isWarning = false;
-                    
+
                     if (data.perIP.bytesLimit) {
                         var used = humanFileSize(data.perIP.bytesUsed || 0, true);
                         var limit = humanFileSize(data.perIP.bytesLimit, true);
@@ -250,7 +250,7 @@ function relativeTime(unixTimestamp) {
                         quotaText += 'Daily storage: <strong>' + used + ' / ' + limit + '</strong>';
                         if (percentUsed > 90) isWarning = true;
                     }
-                    
+
                     if (data.perIP.filesLimit) {
                         if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
                         var filesUsed = data.perIP.filesUsed || 0;
@@ -259,14 +259,14 @@ function relativeTime(unixTimestamp) {
                         quotaText += 'Daily files: <strong>' + filesUsed + ' / ' + filesLimit + '</strong>';
                         if (filesPercent > 90) isWarning = true;
                     }
-                    
+
                     if (data.global.limit) {
                         if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
                         var globalUsed = humanFileSize(data.global.used || 0, true);
                         var globalLimit = humanFileSize(data.global.limit, true);
                         quotaText += 'Server: <strong>' + globalUsed + ' / ' + globalLimit + '</strong>';
                     }
-                    
+
                     if (quotaText) {
                         var quotaHtml = quotaText;
                         if (isWarning) {
@@ -433,11 +433,11 @@ function relativeTime(unixTimestamp) {
                     $(".file." + currentFileID + " .progressbar").css("background-color","#DDD");
                     $(".file." + currentFileID).css('background-color', '#DAA');
                     $(".file." + currentFileID + " .merging-status").remove(); // Clean up merging message
-                    
+
                     // Display specific error message if available
                     var errorMessage = e.data.error || 'Upload failed.';
                     $(".file." + currentFileID + " .progress .resulttextbox").val(errorMessage);
-                    
+
                     allFiles[currentFileID] = 1;
                     currentFileID++;
                     handleNextFile();
@@ -461,17 +461,19 @@ function relativeTime(unixTimestamp) {
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET","/c/"+getUrlVars().c,true);
         xmlhttp.onreadystatechange=function() {
-            if (xmlhttp.readyState==4 && xmlhttp.status==200) {
-                var responses = JSON.parse(xmlhttp.responseText);
+            if (xmlhttp.readyState==4) {
+                if (xmlhttp.status==200) {
+                    try {
+                        var responses = JSON.parse(xmlhttp.responseText);
 
-                for (var r in responses) {
-                    var response = responses[r];
-                    var url = String(window.location.origin+'/d/'+response.sha);
-                    var fileInfo = humanFileSize(response.fileSize, false);
-                    if (response.timestamp) {
-                        fileInfo += ' • ' + relativeTime(response.timestamp);
-                    }
-                    $("#dropzone").append(
+                        for (var r in responses) {
+                            var response = responses[r];
+                            var url = String(window.location.origin+'/d/'+response.sha);
+                            var fileInfo = humanFileSize(response.fileSize, false);
+                            if (response.timestamp) {
+                                fileInfo += ' • ' + relativeTime(response.timestamp);
+                            }
+                            $("#dropzone").append(
                         '<div class="file ' + r + '" style="position:relative">' +
                             '<span class="progressbar"></span>' +
                             '<div class="name"><a href="' + url + '">' + response.fileName + '</a> <span style="color:#999;">(' + fileInfo + ')</span></div>' +
@@ -490,6 +492,15 @@ function relativeTime(unixTimestamp) {
                             copyToClipboard(specificUrl, $(this));
                         });
                     })(url);
+                }
+                    } catch (e) {
+                        console.error("Failed to parse collection response:", e);
+                        $("#dropzone").html('<div style="color:#c85;padding:20px;">Failed to load collection. Please try again.</div>');
+                    }
+                } else {
+                    // Handle error responses
+                    console.error("Failed to load collection, status:", xmlhttp.status);
+                    $("#dropzone").html('<div style="color:#c85;padding:20px;">Collection not found.</div>');
                 }
             }
         };

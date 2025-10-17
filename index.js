@@ -716,7 +716,6 @@ app.get('/d/:fileName/',
 	});
 });
 
-// FIXME: async
 app.post('/merge/',
 	uploadLimiter,
 	query('name').trim().notEmpty().isLength({ max: 255 }).withMessage('File name must be 1-255 characters'),
