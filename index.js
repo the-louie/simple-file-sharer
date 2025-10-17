@@ -54,9 +54,9 @@ function handleValidationErrors(request, response, next) {
 	const errors = validationResult(request);
 	if (!errors.isEmpty()) {
 		logError('Validation failed:', errors.array());
-		return response.status(400).json({ 
-			error: 'Invalid input', 
-			details: errors.array() 
+		return response.status(400).json({
+			error: 'Invalid input',
+			details: errors.array()
 		});
 	}
 	next();
@@ -66,7 +66,7 @@ function handleValidationErrors(request, response, next) {
 async function checkUploadQuotas(remoteIP) {
 	const now = Math.floor(Date.now() / 1000);
 	const dayAgo = now - 86400; // 24 hours ago
-	
+
 	return new Promise((resolve, reject) => {
 		// Check global storage quota
 		if (config.max_storage_bytes && config.max_storage_bytes > 0) {
@@ -74,17 +74,17 @@ async function checkUploadQuotas(remoteIP) {
 				if (err) {
 					return reject({ error: "Database error", code: 500 });
 				}
-				
+
 				const totalStorage = row?.total || 0;
 				if (totalStorage >= config.max_storage_bytes) {
 					log("Global storage quota exceeded:", totalStorage, ">=", config.max_storage_bytes);
-					return reject({ 
-						error: "Server storage quota exceeded", 
+					return reject({
+						error: "Server storage quota exceeded",
 						code: 507,
-						retryAfter: 86400 
+						retryAfter: 86400
 					});
 				}
-				
+
 				// Check per-IP daily storage quota
 				if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 					db.get(
@@ -94,17 +94,17 @@ async function checkUploadQuotas(remoteIP) {
 							if (err2) {
 								return reject({ error: "Database error", code: 500 });
 							}
-							
+
 							const ipDailyStorage = row2?.total || 0;
 							if (ipDailyStorage >= config.per_ip_daily_bytes) {
 								log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
-								return reject({ 
-									error: "Daily upload quota exceeded", 
+								return reject({
+									error: "Daily upload quota exceeded",
 									code: 429,
-									retryAfter: 86400 
+									retryAfter: 86400
 								});
 							}
-							
+
 							// Check per-IP daily file count quota
 							if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 								db.get(
@@ -114,17 +114,17 @@ async function checkUploadQuotas(remoteIP) {
 										if (err3) {
 											return reject({ error: "Database error", code: 500 });
 										}
-										
+
 										const ipDailyFiles = row3?.count || 0;
 										if (ipDailyFiles >= config.per_ip_daily_files) {
 											log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
-											return reject({ 
-												error: "Daily file upload limit exceeded", 
+											return reject({
+												error: "Daily file upload limit exceeded",
 												code: 429,
-												retryAfter: 86400 
+												retryAfter: 86400
 											});
 										}
-										
+
 										resolve(true);
 									}
 								);
@@ -143,17 +143,17 @@ async function checkUploadQuotas(remoteIP) {
 								if (err3) {
 									return reject({ error: "Database error", code: 500 });
 								}
-								
+
 								const ipDailyFiles = row3?.count || 0;
 								if (ipDailyFiles >= config.per_ip_daily_files) {
 									log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
-									return reject({ 
-										error: "Daily file upload limit exceeded", 
+									return reject({
+										error: "Daily file upload limit exceeded",
 										code: 429,
-										retryAfter: 86400 
+										retryAfter: 86400
 									});
 								}
-								
+
 								resolve(true);
 							}
 						);
@@ -172,17 +172,17 @@ async function checkUploadQuotas(remoteIP) {
 						if (err) {
 							return reject({ error: "Database error", code: 500 });
 						}
-						
+
 						const ipDailyStorage = row?.total || 0;
 						if (ipDailyStorage >= config.per_ip_daily_bytes) {
 							log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
-							return reject({ 
-								error: "Daily upload quota exceeded", 
+							return reject({
+								error: "Daily upload quota exceeded",
 								code: 429,
-								retryAfter: 86400 
+								retryAfter: 86400
 							});
 						}
-						
+
 						// Check per-IP daily file count quota
 						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 							db.get(
@@ -192,17 +192,17 @@ async function checkUploadQuotas(remoteIP) {
 									if (err2) {
 										return reject({ error: "Database error", code: 500 });
 									}
-									
+
 									const ipDailyFiles = row2?.count || 0;
 									if (ipDailyFiles >= config.per_ip_daily_files) {
 										log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
-										return reject({ 
-											error: "Daily file upload limit exceeded", 
+										return reject({
+											error: "Daily file upload limit exceeded",
 											code: 429,
-											retryAfter: 86400 
+											retryAfter: 86400
 										});
 									}
-									
+
 									resolve(true);
 								}
 							);
@@ -220,17 +220,17 @@ async function checkUploadQuotas(remoteIP) {
 						if (err) {
 							return reject({ error: "Database error", code: 500 });
 						}
-						
+
 						const ipDailyFiles = row?.count || 0;
 						if (ipDailyFiles >= config.per_ip_daily_files) {
 							log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
-							return reject({ 
-								error: "Daily file upload limit exceeded", 
+							return reject({
+								error: "Daily file upload limit exceeded",
 								code: 429,
-								retryAfter: 86400 
+								retryAfter: 86400
 							});
 						}
-						
+
 						resolve(true);
 					}
 				);
@@ -587,7 +587,7 @@ function shortenHash(hash) {
 }
 
 
-app.post('/upload/', 
+app.post('/upload/',
 	uploadLimiter,
 	query('chunkIndex').isInt({ min: 0 }).withMessage('chunkIndex must be a non-negative integer'),
 	query('uuid').isUUID(4).withMessage('uuid must be a valid UUID v4'),
@@ -661,7 +661,7 @@ app.post('/upload/',
 
 });
 
-app.get('/d/:fileName/', 
+app.get('/d/:fileName/',
 	downloadLimiter,
 	param('fileName').matches(/^[A-Za-z0-9\-_\.~]+$/).withMessage('Invalid file name format'),
 	handleValidationErrors,
@@ -711,7 +711,7 @@ app.get('/d/:fileName/',
 });
 
 // FIXME: async
-app.post('/merge/', 
+app.post('/merge/',
 	uploadLimiter,
 	query('name').trim().notEmpty().isLength({ max: 255 }).withMessage('File name must be 1-255 characters'),
 	query('chunkCount').isInt({ min: 1 }).withMessage('chunkCount must be a positive integer'),
@@ -796,45 +796,45 @@ app.post('/merge/',
 				if (detectedType) {
 					log("Detected file type:", detectedType.mime, "for file:", fileName);
 					
-				// Check if file type is blocked
-				const blockedTypes = config.blocked_mime_types || [];
-				if (blockedTypes.includes(detectedType.mime)) {
-					logError("Blocked file type detected:", detectedType.mime, "for file:", fileName);
-					audit('UPLOAD_BLOCKED', remoteAddress, null, { 
-						filename: originalFileName, 
-						mimeType: detectedType.mime, 
-						uuid 
-					}, 'BLOCKED');
-					
-					// Delete the merged file
-					try {
-						fs.unlinkSync(finalFilePath);
-					} catch (unlinkErr) {
-						logError("Error deleting blocked file:", unlinkErr);
-					}
-					
-					// Delete chunk files
-					fileList.forEach(function(chunkPath) {
+					// Check if file type is blocked
+					const blockedTypes = config.blocked_mime_types || [];
+					if (blockedTypes.includes(detectedType.mime)) {
+						logError("Blocked file type detected:", detectedType.mime, "for file:", fileName);
+						audit('UPLOAD_BLOCKED', remoteAddress, null, {
+							filename: originalFileName,
+							mimeType: detectedType.mime,
+							uuid
+						}, 'BLOCKED');
+						
+						// Delete the merged file
 						try {
-							fs.unlinkSync(chunkPath);
-						} catch (chunkUnlinkErr) {
-							logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
+							fs.unlinkSync(finalFilePath);
+						} catch (unlinkErr) {
+							logError("Error deleting blocked file:", unlinkErr);
 						}
-					});
-					
-					// Delete chunk records from database
-					db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
-						if (dbErr) {
-							logError("Error deleting chunk records for blocked file:", dbErr);
-						}
-					});
-					
-					response.status(403).json({
-						error: "File type not allowed",
-						type: detectedType.mime
-					});
-					return;
-				}
+						
+						// Delete chunk files
+						fileList.forEach(function(chunkPath) {
+							try {
+								fs.unlinkSync(chunkPath);
+							} catch (chunkUnlinkErr) {
+								logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
+							}
+						});
+						
+						// Delete chunk records from database
+						db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
+							if (dbErr) {
+								logError("Error deleting chunk records for blocked file:", dbErr);
+							}
+						});
+						
+						response.status(403).json({
+							error: "File type not allowed",
+							type: detectedType.mime
+						});
+						return;
+					}
 				} else {
 					log("Could not detect file type for:", fileName, "- allowing upload");
 				}
@@ -842,7 +842,7 @@ app.post('/merge/',
 				logError("Error detecting file type:", typeErr);
 				// Continue anyway - don't block if detection fails
 			}
-			
+
 			// Start transaction for atomic DB operations
 			db.run("BEGIN TRANSACTION", function(err) {
 				if (err) {
