@@ -242,6 +242,18 @@ async function checkUploadQuotas(remoteIP) {
 	});
 }
 
+// Audit logging function
+function audit(eventType, remoteIP, username, details, status) {
+	const stmt = db.prepare('INSERT INTO audit_log (event_type, remote_ip, username, details, status) VALUES (?, ?, ?, ?, ?)');
+	stmt.run(eventType, remoteIP, username || null, JSON.stringify(details), status, function(err) {
+		if (err) {
+			logError("Failed to write audit log:", err);
+		}
+		stmt.finalize();
+	});
+	log("AUDIT:", eventType, remoteIP, username, details, status);
+}
+
 var config;
 
 // Validate required environment variables
@@ -319,6 +331,12 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTO
 
 	// Run cleanup on startup
 	cleanupOrphanedChunks();
+});
+db.run("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), event_type TEXT, remote_ip TEXT, username TEXT, details TEXT, status TEXT)", function(err) {
+	if (err) {
+		logError("Failed to create audit_log table:", err);
+		process.exit(1);
+	}
 });
 
 // Cleanup function for orphaned chunk files
@@ -421,10 +439,28 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	  body('username').trim().notEmpty().withMessage('Username is required'),
 	  body('password').notEmpty().withMessage('Password is required'),
 	  handleValidationErrors,
-	  passport.authenticate('local', {
-		successRedirect: '/',
-		failureRedirect: '/login'
-	  })
+	  function(req, res, next) {
+		passport.authenticate('local', function(err, user, info) {
+			if (err) {
+				logError("Login error:", err);
+				audit('LOGIN_ERROR', req.ip, req.body.username, { error: err.message }, 'FAILURE');
+				return next(err);
+			}
+			if (!user) {
+				audit('LOGIN_FAILURE', req.ip, req.body.username, { reason: info?.message || 'Invalid credentials' }, 'FAILURE');
+				return res.redirect('/login');
+			}
+			req.logIn(user, function(err) {
+				if (err) {
+					logError("Login session error:", err);
+					audit('LOGIN_ERROR', req.ip, user, { error: err.message }, 'FAILURE');
+					return next(err);
+				}
+				audit('LOGIN_SUCCESS', req.ip, user, {}, 'SUCCESS');
+				return res.redirect('/');
+			});
+		})(req, res, next);
+	  }
 	);
 
 	passport.serializeUser(function(user, done) { done(null, user); });
@@ -580,6 +616,7 @@ app.post('/upload/',
 				await checkUploadQuotas(remoteAddress);
 			} catch (quotaError) {
 				logError("Quota check failed:", quotaError);
+				audit('UPLOAD_QUOTA_EXCEEDED', remoteAddress, null, { uuid, error: quotaError.error }, 'FAILURE');
 				response.status(quotaError.code).set('Retry-After', quotaError.retryAfter || 3600).json({
 					error: quotaError.error
 				});
@@ -652,6 +689,7 @@ app.get('/d/:fileName/',
 		var mimeType = mime.getType(realFileName) || 'application/octet-stream';
 		if (mimeType && mimeType.split('/')[0] == 'image') {
 			log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
+			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'view' }, 'SUCCESS');
 			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
 			    if (err) {
 			      logError(err);
@@ -660,6 +698,7 @@ app.get('/d/:fileName/',
 			});
 		} else {
 			log(request.ip,'downloading" ' + fileName + '"');
+			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'download' }, 'SUCCESS');
 			response.download(fileName, realFileName, function(err) {
 			    if (err) {
 			      logError(err);
@@ -761,6 +800,11 @@ app.post('/merge/',
 				const blockedTypes = config.blocked_mime_types || [];
 				if (blockedTypes.includes(detectedType.mime)) {
 					logError("Blocked file type detected:", detectedType.mime, "for file:", fileName);
+					audit('UPLOAD_BLOCKED', remoteAddress, null, { 
+						filename: originalFileName, 
+						mimeType: detectedType.mime, 
+						uuid 
+					}, 'BLOCKED');
 					
 					// Delete the merged file
 					try {
@@ -854,6 +898,14 @@ app.post('/merge/',
 									if (err) logError("Error deleting chunk file:", err);
 								});
 							});
+
+							// Audit successful upload
+							audit('UPLOAD_SUCCESS', remoteAddress, null, {
+								filename: originalFileName,
+								sha: fileName,
+								fileSize: fileSize,
+								collectionID: collectionID || null
+							}, 'SUCCESS');
 
 							response.writeHead(200, {'Content-Type': 'application/json'});
 							response.write(JSON.stringify({'fileName':fileName}));
