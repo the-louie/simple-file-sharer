@@ -280,6 +280,25 @@ function sanitizeFilename(filename) {
 	return sanitized || 'download';
 }
 
+// Timing-safe string comparison to prevent timing attacks
+function timingSafeEqual(a, b) {
+	if (typeof a !== 'string' || typeof b !== 'string') {
+		return false;
+	}
+	
+	// Pad to same length to prevent length-based timing attacks
+	const maxLen = Math.max(a.length, b.length);
+	const aBuf = Buffer.from(a.padEnd(maxLen, '\0'), 'utf8');
+	const bBuf = Buffer.from(b.padEnd(maxLen, '\0'), 'utf8');
+	
+	try {
+		return crypto.timingSafeEqual(aBuf, bBuf);
+	} catch (e) {
+		// If comparison fails (shouldn't happen with padding), return false
+		return false;
+	}
+}
+
 var config;
 
 // Validate required environment variables
@@ -504,8 +523,8 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	passport.serializeUser(function(user, done) { done(null, user); });
 	passport.deserializeUser(function(user, done) { done(null, user); });
 	passport.use(new LocalStrategy(function(username, password, done) {
-		// Verify username first
-		if (username !== config.authdetails.username) {
+		// Verify username using constant-time comparison to prevent timing attacks
+		if (!timingSafeEqual(username, config.authdetails.username)) {
 			return done(null, false, { message: 'Invalid credentials' });
 		}
 
@@ -533,7 +552,8 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 			logError("Run: node -e \"require('bcrypt').hash('your_password', 10).then(console.log)\"");
 
 			// Still support plaintext for backward compatibility but warn
-			if (password === config.authdetails.password) {
+			// Use timing-safe comparison to prevent timing attacks
+			if (timingSafeEqual(password, config.authdetails.password)) {
 				return done(null, config.authdetails.username);
 			} else {
 				return done(null, false, { message: 'Invalid credentials' });
