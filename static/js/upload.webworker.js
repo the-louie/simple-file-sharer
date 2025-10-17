@@ -10,6 +10,18 @@ var guid = (function () {
   };
 })();
 
+function humanFileSize(bytes, si) {
+    var thresh = si ? 1000 : 1024;
+    if(bytes < thresh) return bytes + ' B';
+    var units = si ? ['kB','MB','GB','TB','PB','EB','ZB','YB'] : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var u = -1;
+    do {
+        bytes /= thresh;
+        ++u;
+    } while(bytes >= thresh);
+    return bytes.toFixed(1)+' '+units[u];
+}
+
 var keyStr = "ABCDEFGHIJKLMNOP" +
              "QRSTUVWXYZabcdef" +
              "ghijklmnopqrstuv" +
@@ -72,7 +84,7 @@ function uploadChunk (chunk, chunkIndex) {
         if (self.chunkRetries[chunkIndex] >= self.MAX_RETRIES) {
             console.error("Chunk", chunkIndex, "failed after", self.MAX_RETRIES, "retries - aborting upload");
             self.postMessage({
-                action:"FAIL", 
+                action:"FAIL",
                 fileID:self.currentFileID,
                 error: "Upload failed after multiple attempts. Please check your connection and try again."
             });
@@ -104,15 +116,15 @@ function uploadChunk (chunk, chunkIndex) {
                             quotaMsg = errorResponse.error;
                         }
                     } catch (e) {}
-                    
+
                     self.postMessage({
-                        action:"FAIL", 
+                        action:"FAIL",
                         fileID:self.currentFileID,
                         error: quotaMsg + " Please try again later."
                     });
                     return false;
                 }
-                
+
                 handleFailure(errorReason);
                 return false;
             }
@@ -155,10 +167,10 @@ function uploadChunk (chunk, chunkIndex) {
         if (e.lengthComputable && e.total > 0) {
             currentChunkProgress = e.loaded / e.total;
         }
-        
+
         // Total progress = (completed chunks + current chunk progress) / total chunks
         var totalProgress = (self.chunksSent + currentChunkProgress) / self.chunkCount;
-        
+
         self.postMessage({
             action:"PROGRESS",
             fileID:self.currentFileID,
@@ -202,13 +214,13 @@ function uploadNextChunk() {
     if (allDone) {
         // All chunks uploaded - trigger merge
         console.log("All chunks uploaded, triggering merge for", self.fileName);
-        
+
         // Notify UI that merge is starting
         self.postMessage({
             action:"MERGING",
             fileID:self.currentFileID
         });
-        
+
         var xhrMerge = new XMLHttpRequest();
         xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid + "&collectionID=" + self.collectionID);
         xhrMerge.onreadystatechange = function (e) {
@@ -216,7 +228,7 @@ function uploadNextChunk() {
                 if (xhrMerge.status != 200) {
                     console.error("Merge failed with status:", xhrMerge.status);
                     var errorMsg = "Upload failed. Please try again.";
-                    
+
                     // Parse server error message if available
                     try {
                         var errorResponse = JSON.parse(xhrMerge.responseText);
@@ -224,6 +236,8 @@ function uploadNextChunk() {
                             // Map server errors to user-friendly messages
                             if (xhrMerge.status === 403) {
                                 errorMsg = "This file type is not allowed. Please upload a different file.";
+                            } else if (xhrMerge.status === 413) {
+                                errorMsg = "File is too large. Maximum size allowed is " + humanFileSize(errorResponse.maxSize || 0, true) + ".";
                             } else if (xhrMerge.status === 429) {
                                 errorMsg = "Upload limit reached. Please try again later.";
                             } else if (xhrMerge.status === 507) {
@@ -238,13 +252,15 @@ function uploadNextChunk() {
                         // Use status-based messages if can't parse response
                         if (xhrMerge.status === 403) {
                             errorMsg = "This file type is not allowed.";
+                        } else if (xhrMerge.status === 413) {
+                            errorMsg = "File is too large.";
                         } else if (xhrMerge.status === 429) {
                             errorMsg = "Upload limit reached. Try again later.";
                         } else if (xhrMerge.status === 507) {
                             errorMsg = "Server storage is full.";
                         }
                     }
-                    
+
                     self.postMessage({action:"FAIL", fileID:self.currentFileID, error: errorMsg});
                 } else {
                     // report back that upload of file was successful!
@@ -254,7 +270,7 @@ function uploadNextChunk() {
                     } catch (e) {
                         console.error("Failed to parse merge response:", e);
                         self.postMessage({
-                            action:"FAIL", 
+                            action:"FAIL",
                             fileID:self.currentFileID,
                             error: "Server error. Please try again."
                         });
@@ -266,7 +282,7 @@ function uploadNextChunk() {
         xhrMerge.onerror = function() {
             console.error("Network error during merge");
             self.postMessage({
-                action:"FAIL", 
+                action:"FAIL",
                 fileID:self.currentFileID,
                 error: "Network error. Please check your connection and try again."
             });
@@ -275,7 +291,7 @@ function uploadNextChunk() {
         xhrMerge.ontimeout = function() {
             console.error("Timeout during merge");
             self.postMessage({
-                action:"FAIL", 
+                action:"FAIL",
                 fileID:self.currentFileID,
                 error: "Upload took too long. Try a smaller file or check your connection."
             });

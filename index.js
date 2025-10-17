@@ -331,7 +331,8 @@ try {
 		],
 		"max_storage_bytes": 107374182400,
 		"per_ip_daily_bytes": 1073741824,
-		"per_ip_daily_files": 100
+		"per_ip_daily_files": 100,
+		"max_file_size_bytes": 10737418240
 	};
 }
 
@@ -464,9 +465,9 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	app.use(passport.initialize());
 	app.use(passport.session());
 
-	// Setup body parser only for login route (after session/passport setup)
-	app.use('/login', express.urlencoded({ extended: false }));
-	app.use('/login', express.json());
+	// Setup body parser only for login route (after session/passport setup) with size limits
+	app.use('/login', express.urlencoded({ extended: false, limit: '1kb' }));
+	app.use('/login', express.json({ limit: '1kb' }));
 
 	app.get('/login', function(request, response) {
 	  response.sendFile(currentPath + '/static/login.html');
@@ -847,6 +848,28 @@ app.post('/merge/',
 
 		if (hadError) {
 			return; // Don't proceed if there was an error
+		}
+
+		// Validate file size limit
+		if (config.max_file_size_bytes && config.max_file_size_bytes > 0) {
+			if (fileSize > config.max_file_size_bytes) {
+				logError("File size exceeds limit:", fileSize, ">", config.max_file_size_bytes);
+				result_file.end(); // Close the stream
+				
+				// Delete the incomplete merged file
+				try {
+					fs.unlinkSync(config.upload_dir+'/'+fileName);
+				} catch (unlinkErr) {
+					logError("Error deleting oversized file:", unlinkErr);
+				}
+				
+				response.status(413).json({ 
+					error: "File size exceeds limit",
+					maxSize: config.max_file_size_bytes,
+					actualSize: fileSize
+				});
+				return;
+			}
 		}
 
 		result_file.end(async function() {
