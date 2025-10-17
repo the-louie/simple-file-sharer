@@ -178,6 +178,13 @@ function uploadNextChunk() {
     if (allDone) {
         // All chunks uploaded - trigger merge
         console.log("All chunks uploaded, triggering merge for", self.fileName);
+        
+        // Notify UI that merge is starting
+        self.postMessage({
+            action:"MERGING",
+            fileID:self.currentFileID
+        });
+        
         var xhrMerge = new XMLHttpRequest();
         xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid + "&collectionID=" + self.collectionID);
         xhrMerge.onreadystatechange = function (e) {

@@ -360,6 +360,7 @@ function humanFileSize(bytes, si) {
                 if (e.data.action == 'SUCCESS') {
                     if(allFiles.length > 1) $(".collection").css("display", "block");
                     $(".file." + currentFileID + " .progressbar").css("display","none");
+                    $(".file." + currentFileID + " .merging-status").remove(); // Clean up merging message
                     uploadFinish(e.data.fileName, currentFileID);
                     allFiles[currentFileID] = 1;
                     currentFileID++;
@@ -374,6 +375,11 @@ function humanFileSize(bytes, si) {
                     currentFileID++;
                     handleNextFile();
                     return false;
+                } else if (e.data.action == 'MERGING') {
+                    // Show merge in progress
+                    $(".file." + currentFileID + " .progressbar").width("100%");
+                    $(".file." + currentFileID + " .progressbar").css("background-color","#9C9");
+                    $(".file." + currentFileID).prepend('<div class="merging-status">Processing file...</div>');
                 } else if (e.data.action == 'PROGRESS') {
                     $(".file." + currentFileID + " .progressbar").width((100*e.data.sent) + "%");
                 }
