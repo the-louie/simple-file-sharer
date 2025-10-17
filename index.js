@@ -923,11 +923,11 @@ app.get('/c/:collectionID',
 	handleValidationErrors,
 	function (request, response) {
 	var collectionID = request.params.collectionID;
-	var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
+	var query = "SELECT filename, sha, fileSize, timestamp FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
 	db.all(query, [collectionID], function(err, rows) {
 		if(rows) {
-			var files = rows.map(function(row) {
-				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize};
+			var files = rows.map(function(row) {
+				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize,timestamp:row.timestamp};
 			});
 
 			response.writeHead(200, "text/html");

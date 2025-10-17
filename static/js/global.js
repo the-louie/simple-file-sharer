@@ -32,6 +32,18 @@ function humanFileSize(bytes, si) {
     return bytes.toFixed(1)+' '+units[u];
 }
 
+function relativeTime(unixTimestamp) {
+    var now = Math.floor(Date.now() / 1000);
+    var diff = now - unixTimestamp;
+    
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + ' days ago';
+    if (diff < 2592000) return Math.floor(diff / 604800) + ' weeks ago';
+    return Math.floor(diff / 2592000) + ' months ago';
+}
+
 (function ($, window) {
     //"use strict";
 
@@ -455,10 +467,14 @@ function humanFileSize(bytes, si) {
                 for (var r in responses) {
                     var response = responses[r];
                     var url = String(window.location.origin+'/d/'+response.sha);
+                    var fileInfo = humanFileSize(response.fileSize, false);
+                    if (response.timestamp) {
+                        fileInfo += ' • ' + relativeTime(response.timestamp);
+                    }
                     $("#dropzone").append(
                         '<div class="file ' + r + '" style="position:relative">' +
                             '<span class="progressbar"></span>' +
-                            '<div class="name"><a href="' + url + '">' + response.fileName + '</a> (' + humanFileSize(response.fileSize, false) + ')</div>' +
+                            '<div class="name"><a href="' + url + '">' + response.fileName + '</a> <span style="color:#999;">(' + fileInfo + ')</span></div>' +
                             '<div class="progress">' +
                                 '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="'+url+'" disabled />' +
                                 '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="copy"/>' +
