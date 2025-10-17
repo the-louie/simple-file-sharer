@@ -750,6 +750,9 @@ app.get('/d/:fileName/',
 		var header = {};
 		var realFileName = row.fileName;
 		var safeFileName = sanitizeFilename(realFileName);
+		
+		// Encode filename for Content-Disposition (RFC 5987 for UTF-8 support)
+		var encodedFileName = encodeURIComponent(safeFileName);
 
 		var mimeType = mime.getType(realFileName) || 'application/octet-stream';
 		if (mimeType && mimeType.split('/')[0] == 'image') {
@@ -758,8 +761,10 @@ app.get('/d/:fileName/',
 			response.sendFile(fileName, {
 				'headers':{ 
 					'Content-Type': mimeType,
-					'Content-Disposition': 'inline; filename="' + safeFileName + '"',
-					'X-Content-Type-Options': 'nosniff'
+					'Content-Disposition': 'inline; filename="' + safeFileName + '"; filename*=UTF-8\'\'' + encodedFileName,
+					'X-Content-Type-Options': 'nosniff',
+					'X-Download-Options': 'noopen',
+					'Cache-Control': 'public, max-age=31536000, immutable'
 				}
 			}, function(err) {
 			    if (err) {
@@ -772,7 +777,9 @@ app.get('/d/:fileName/',
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'download' }, 'SUCCESS');
 			response.download(fileName, safeFileName, {
 				headers: {
-					'X-Content-Type-Options': 'nosniff'
+					'X-Content-Type-Options': 'nosniff',
+					'X-Download-Options': 'noopen',
+					'Cache-Control': 'public, max-age=31536000, immutable'
 				}
 			}, function(err) {
 			    if (err) {
