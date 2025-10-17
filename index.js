@@ -83,12 +83,71 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOI
 		process.exit(1);
 	}
 });
-db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp)", function(err) {
+db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", function(err) {
 	if (err) {
 		logError("Failed to create uploaded_chunks table:", err);
 		process.exit(1);
 	}
+	
+	// Run cleanup on startup
+	cleanupOrphanedChunks();
 });
+
+// Cleanup function for orphaned chunk files
+function cleanupOrphanedChunks() {
+	const maxAgeHours = 24; // Configurable: delete chunks older than 24 hours
+	const maxAgeSeconds = maxAgeHours * 60 * 60;
+	
+	log("Running cleanup for orphaned chunks older than", maxAgeHours, "hours");
+	
+	// Query chunks older than maxAge
+	const query = "SELECT filename FROM uploaded_chunks WHERE timestamp < datetime('now', '-" + maxAgeHours + " hours')";
+	
+	db.all(query, [], function(err, rows) {
+		if (err) {
+			logError("Error querying old chunks:", err);
+			return;
+		}
+		
+		if (!rows || rows.length === 0) {
+			log("No orphaned chunks to clean up");
+			return;
+		}
+		
+		log("Found", rows.length, "orphaned chunks to delete");
+		
+		var deletedFiles = 0;
+		var deletedRecords = 0;
+		
+		rows.forEach(function(row) {
+			const chunkPath = config.upload_dir + '/pending/' + row.filename;
+			
+			// Delete file from disk
+			fs.unlink(chunkPath, function(err) {
+				if (err && err.code !== 'ENOENT') {
+					// Log error unless file already doesn't exist
+					logError("Error deleting orphaned chunk file:", chunkPath, err);
+				} else if (!err) {
+					deletedFiles++;
+				}
+			});
+		});
+		
+		// Delete records from database
+		const deleteQuery = "DELETE FROM uploaded_chunks WHERE timestamp < datetime('now', '-" + maxAgeHours + " hours')";
+		db.run(deleteQuery, function(err) {
+			if (err) {
+				logError("Error deleting orphaned chunk records:", err);
+			} else {
+				deletedRecords = this.changes;
+				log("Cleanup complete:", deletedFiles, "files and", deletedRecords, "DB records deleted");
+			}
+		});
+	});
+}
+
+// Schedule periodic cleanup every hour
+setInterval(cleanupOrphanedChunks, 60 * 60 * 1000);
 
 // Rate limiting configuration
 const loginLimiter = rateLimit({
