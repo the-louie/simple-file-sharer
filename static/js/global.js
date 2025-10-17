@@ -245,11 +245,11 @@ function relativeTime(unixTimestamp) {
                 return response.json();
             })
             .then(function(data) {
-                if (data.enabled) {
+                if (data && data.enabled) {
                     var quotaText = '';
                     var isWarning = false;
 
-                    if (data.perIP.bytesLimit) {
+                    if (data.perIP && data.perIP.bytesLimit) {
                         var used = humanFileSize(data.perIP.bytesUsed || 0, true);
                         var limit = humanFileSize(data.perIP.bytesLimit, true);
                         var percentUsed = ((data.perIP.bytesUsed || 0) / data.perIP.bytesLimit) * 100;
@@ -257,7 +257,7 @@ function relativeTime(unixTimestamp) {
                         if (percentUsed > 90) isWarning = true;
                     }
 
-                    if (data.perIP.filesLimit) {
+                    if (data.perIP && data.perIP.filesLimit) {
                         if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
                         var filesUsed = data.perIP.filesUsed || 0;
                         var filesLimit = data.perIP.filesLimit;
@@ -266,7 +266,7 @@ function relativeTime(unixTimestamp) {
                         if (filesPercent > 90) isWarning = true;
                     }
 
-                    if (data.global.limit) {
+                    if (data.global && data.global.limit) {
                         if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
                         var globalUsed = humanFileSize(data.global.used || 0, true);
                         var globalLimit = humanFileSize(data.global.limit, true);
@@ -279,8 +279,10 @@ function relativeTime(unixTimestamp) {
                             quotaHtml = '<span class="quota-warning">⚠ Approaching limit: </span>' + quotaText;
                         }
                         var quotaInfo = document.getElementById('quota-info');
-                        quotaInfo.innerHTML = quotaHtml;
-                        quotaInfo.style.display = 'block';
+                        if (quotaInfo) {
+                            quotaInfo.innerHTML = quotaHtml;
+                            quotaInfo.style.display = 'block';
+                        }
                     }
                 }
             })
@@ -301,7 +303,9 @@ function relativeTime(unixTimestamp) {
                 additionalSection.remove();
             }
 
-            var dropzone = document.getElementById("dropzone");
+            var dropzoneElement = document.getElementById("dropzone");
+            if (!dropzoneElement) return;
+            
             for (var i = prevCountFiles + waiting, j = 0;
                 i < prevCountFiles + files.length + waiting;
                 i++, j++ ) {
@@ -312,18 +316,18 @@ function relativeTime(unixTimestamp) {
                     '<span class="progressbar"></span>' +
                     '<div class="name ' + i + '"></div>' +
                     '<div class="progress">' +
-                        '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="Waiting..." disabled />' +
-                        '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="..." DISABLED/>' +
-                        '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />' +
+                        '<input style="width: 800px;" class="resulttextbox" type="text" value="Waiting..." disabled />' +
+                        '<input style="width:65px;" class="resultcopy" type="button" value="..." DISABLED/>' +
+                        '<input style="width:35px;display:none" class="resultcopyall" type="button" value="" />' +
                     '</div>';
-                dropzone.appendChild(fileDiv);
+                dropzoneElement.appendChild(fileDiv);
                 
-                var nameElement = document.querySelector(".name." + i);
+                var nameElement = fileDiv.querySelector(".name." + i);
                 if (nameElement) {
                     nameElement.textContent = files[j].name;
                 }
             }
-            dropzone.scrollTop = dropzone.scrollHeight;
+            dropzoneElement.scrollTop = dropzoneElement.scrollHeight;
             waiting += count;
             if (!locked) {
                 waiting -= count;
@@ -415,7 +419,10 @@ function relativeTime(unixTimestamp) {
             additionalSection.style.cursor = 'pointer';
             additionalSection.innerHTML = '<div>Want to upload more files?<br/>Drop files here to add more</div>';
             
-            document.getElementById("dropzone").appendChild(additionalSection);
+            var dropzoneElement = document.getElementById("dropzone");
+            if (dropzoneElement) {
+                dropzoneElement.appendChild(additionalSection);
+            }
 
             // Make the additional section a drop zone
             additionalSection.addEventListener("dragenter", noopHandler);
@@ -464,7 +471,10 @@ function relativeTime(unixTimestamp) {
             
             worker.onmessage = function(e) {
                 var fileElement = document.querySelector(".file." + currentFileID);
-                if (!fileElement) return;
+                if (!fileElement) {
+                    worker.terminate(); // Clean up worker
+                    return;
+                }
                 
                 if (e.data.action == 'SUCCESS') {
                     if(allFiles.length > 1) {
@@ -479,6 +489,7 @@ function relativeTime(unixTimestamp) {
                     loadQuotaInfo(); // Update quota display after successful upload
                     allFiles[currentFileID] = 1;
                     currentFileID++;
+                    worker.terminate(); // Clean up worker
                     handleNextFile();
                 } else if (e.data.action == 'FAIL') {
                     locked = false;
@@ -498,6 +509,7 @@ function relativeTime(unixTimestamp) {
 
                     allFiles[currentFileID] = 1;
                     currentFileID++;
+                    worker.terminate(); // Clean up worker
                     handleNextFile();
                     return false;
                 } else if (e.data.action == 'MERGING') {
@@ -531,6 +543,8 @@ function relativeTime(unixTimestamp) {
         xmlhttp.onreadystatechange=function() {
             if (xmlhttp.readyState==4) {
                 var dropzoneDiv = document.getElementById("dropzone");
+                if (!dropzoneDiv) return;
+                
                 if (xmlhttp.status==200) {
                     try {
                         var responses = JSON.parse(xmlhttp.responseText);
@@ -550,9 +564,9 @@ function relativeTime(unixTimestamp) {
                                 '<span class="progressbar"></span>' +
                                 '<div class="name"><a href="' + url + '">' + response.fileName + '</a> <span style="color:#999;">(' + fileInfo + ')</span></div>' +
                                 '<div class="progress">' +
-                                    '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="'+url+'" disabled />' +
-                                    '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="copy"/>' +
-                                    '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />' +
+                                    '<input style="width: 800px;" class="resulttextbox" type="text" value="'+url+'" disabled />' +
+                                    '<input style="width:65px;" class="resultcopy" type="button" value="copy"/>' +
+                                    '<input style="width:35px;display:none" class="resultcopyall" type="button" value="" />' +
                                 '</div>';
                             dropzoneDiv.appendChild(fileDiv);
 
@@ -597,10 +611,13 @@ function relativeTime(unixTimestamp) {
     collectionDiv.style.display = 'none';
     collectionDiv.innerHTML =
         '<div class="name"><a href="'+uuidurl+'">Collection URL</a></div>' +
-        '<input style="width: 800px;" class="resulttextbox" id="result" type="text" value="'+uuidurl+'" />' +
-        '<input style="width:65px;" class="resultcopy" id="copy" type="button" value="copy"/>' +
-        '<input style="width:35px;display:none" class="resultcopyall" id="copy" type="button" value="" />';
-    document.getElementById("dropzone").appendChild(collectionDiv);
+        '<input style="width: 800px;" class="resulttextbox" type="text" value="'+uuidurl+'" />' +
+        '<input style="width:65px;" class="resultcopy" type="button" value="copy"/>' +
+        '<input style="width:35px;display:none" class="resultcopyall" type="button" value="" />';
+    var dropzoneElement = document.getElementById("dropzone");
+    if (dropzoneElement) {
+        dropzoneElement.appendChild(collectionDiv);
+    }
     
     // Add click handler for collection URL copy
     var collectionCopyButton = collectionDiv.querySelector('.resultcopy');
