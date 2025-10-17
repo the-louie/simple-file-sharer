@@ -9,6 +9,7 @@ import passport from "passport";
 import passportLocal from "passport-local";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -16,6 +17,24 @@ const LocalStrategy = passportLocal.Strategy;
 
 var currentPath = process.cwd();
 var app 	   = express();
+
+// Apply security headers with helmet.js
+app.use(helmet({
+	contentSecurityPolicy: {
+		directives: {
+			defaultSrc: ["'self'"],
+			scriptSrc: ["'self'", "'unsafe-inline'", "code.jquery.com"],
+			styleSrc: ["'self'", "'unsafe-inline'"],
+			imgSrc: ["'self'", "data:", "blob:"],
+			connectSrc: ["'self'"],
+			fontSrc: ["'self'"],
+			objectSrc: ["'none'"],
+			mediaSrc: ["'self'"],
+			frameSrc: ["'none'"],
+		},
+	},
+	crossOriginEmbedderPolicy: false, // Allow file downloads
+}));
 
 var validChars = [ 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', 'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','-','_','.','~' ];
 
@@ -88,7 +107,7 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTO
 		logError("Failed to create uploaded_chunks table:", err);
 		process.exit(1);
 	}
-	
+
 	// Run cleanup on startup
 	cleanupOrphanedChunks();
 });
@@ -97,31 +116,31 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTO
 function cleanupOrphanedChunks() {
 	const maxAgeHours = 24; // Configurable: delete chunks older than 24 hours
 	const maxAgeSeconds = maxAgeHours * 60 * 60;
-	
+
 	log("Running cleanup for orphaned chunks older than", maxAgeHours, "hours");
-	
+
 	// Query chunks older than maxAge
 	const query = "SELECT filename FROM uploaded_chunks WHERE timestamp < datetime('now', '-" + maxAgeHours + " hours')";
-	
+
 	db.all(query, [], function(err, rows) {
 		if (err) {
 			logError("Error querying old chunks:", err);
 			return;
 		}
-		
+
 		if (!rows || rows.length === 0) {
 			log("No orphaned chunks to clean up");
 			return;
 		}
-		
+
 		log("Found", rows.length, "orphaned chunks to delete");
-		
+
 		var deletedFiles = 0;
 		var deletedRecords = 0;
-		
+
 		rows.forEach(function(row) {
 			const chunkPath = config.upload_dir + '/pending/' + row.filename;
-			
+
 			// Delete file from disk
 			fs.unlink(chunkPath, function(err) {
 				if (err && err.code !== 'ENOENT') {
@@ -132,7 +151,7 @@ function cleanupOrphanedChunks() {
 				}
 			});
 		});
-		
+
 		// Delete records from database
 		const deleteQuery = "DELETE FROM uploaded_chunks WHERE timestamp < datetime('now', '-" + maxAgeHours + " hours')";
 		db.run(deleteQuery, function(err) {
@@ -521,7 +540,7 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 					var deleteStmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
 					deleteStmt.run(uuid, function(deleteErr) {
 						deleteStmt.finalize();
-						
+
 						if (deleteErr) {
 							logError("Error deleting chunk records:", deleteErr);
 							// Rollback transaction - keep chunks in DB
