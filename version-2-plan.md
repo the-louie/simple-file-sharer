@@ -72,14 +72,14 @@ This plan tracks the ongoing modernization from the legacy codebase to a modern,
 
 17. **Adaptive chunk size with dynamic parallelism** - NOT STARTED (HIGH PRIORITY)
    - **Current**: Fixed 2MB chunks, sequential uploads only
-   - **Proposed**: 
+   - **Proposed**:
      - Start optimistic: 5-10MB chunks with 3-5 parallel transfers
      - Monitor: Track retry rate, timeout frequency, chunk failure patterns
      - Backend signaling: Server sends `X-Upload-Performance: degraded|optimal` header based on load
      - Frontend detection: Calculate success rate per sliding window (last 10 chunks)
      - Dynamic degradation: Reduce to 2MB → 1MB → 512KB chunks, 5 → 3 → 2 → 1 parallel
      - Re-optimization: Gradually increase when conditions improve (95%+ success rate)
-   - **Benefits**: 
+   - **Benefits**:
      - Fast uploads on good connections (3-5x faster with parallelism)
      - Maintains reliability on poor connections (automatic fallback)
      - Reduces server load during peak times (backend can signal degradation)
@@ -329,8 +329,8 @@ This feature will significantly improve upload performance while maintaining rel
 
 ---
 
-*Last Updated: 2025-10-17*  
-*Branch: 2025-overhaul*  
-*Version: 2.0 Planning Phase*  
+*Last Updated: 2025-10-17*
+*Branch: 2025-overhaul*
+*Version: 2.0 Planning Phase*
 *Total Commits: 26*
 

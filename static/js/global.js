@@ -305,7 +305,7 @@ function relativeTime(unixTimestamp) {
 
             var dropzoneElement = document.getElementById("dropzone");
             if (!dropzoneElement) return;
-            
+
             for (var i = prevCountFiles + waiting, j = 0;
                 i < prevCountFiles + files.length + waiting;
                 i++, j++ ) {
@@ -321,7 +321,7 @@ function relativeTime(unixTimestamp) {
                         '<input style="width:35px;display:none" class="resultcopyall" type="button" value="" />' +
                     '</div>';
                 dropzoneElement.appendChild(fileDiv);
-                
+
                 var nameElement = fileDiv.querySelector(".name." + i);
                 if (nameElement) {
                     nameElement.textContent = files[j].name;
@@ -345,30 +345,30 @@ function relativeTime(unixTimestamp) {
 
         var fileElement = document.querySelector(".file." + currentFileID);
         if (!fileElement) return false;
-        
+
         fileElement.style.backgroundColor = '#ADA';
-        
+
         var textbox = fileElement.querySelector(".progress .resulttextbox");
         if (textbox) {
             textbox.value = url;
         }
-        
+
         var nameElement = fileElement.querySelector(".name");
         if (nameElement) {
             var currentName = nameElement.textContent || nameElement.innerHTML;
             nameElement.innerHTML = "<a href='"+url+"'>"+ currentName +"</a>";
         }
-        
+
         var inputs = fileElement.querySelectorAll(".progress input");
         inputs.forEach(function(input) {
             input.removeAttribute('disabled');
         });
-        
+
         var copyButton = fileElement.querySelector(".progress .resultcopy");
         if (copyButton) {
             copyButton.value = 'copy';
             copyButton.removeAttribute('disabled');
-            
+
             // Add click handler for modern clipboard API (use named function to avoid duplicates)
             if (!copyButton.dataset.listenerAttached) {
                 copyButton.dataset.listenerAttached = 'true';
@@ -418,7 +418,7 @@ function relativeTime(unixTimestamp) {
             additionalSection.style.fontSize = '0.9em';
             additionalSection.style.cursor = 'pointer';
             additionalSection.innerHTML = '<div>Want to upload more files?<br/>Drop files here to add more</div>';
-            
+
             var dropzoneElement = document.getElementById("dropzone");
             if (dropzoneElement) {
                 dropzoneElement.appendChild(additionalSection);
@@ -468,14 +468,14 @@ function relativeTime(unixTimestamp) {
             worker.postMessage(msg);
             var dropzoneLabel = document.getElementById("dropzoneLabel");
             if (dropzoneLabel) dropzoneLabel.style.display = 'none';
-            
+
             worker.onmessage = function(e) {
                 var fileElement = document.querySelector(".file." + currentFileID);
                 if (!fileElement) {
                     worker.terminate(); // Clean up worker
                     return;
                 }
-                
+
                 if (e.data.action == 'SUCCESS') {
                     if(allFiles.length > 1) {
                         var collection = document.querySelector(".collection");
@@ -544,7 +544,7 @@ function relativeTime(unixTimestamp) {
             if (xmlhttp.readyState==4) {
                 var dropzoneDiv = document.getElementById("dropzone");
                 if (!dropzoneDiv) return;
-                
+
                 if (xmlhttp.status==200) {
                     try {
                         var responses = JSON.parse(xmlhttp.responseText);
@@ -556,7 +556,7 @@ function relativeTime(unixTimestamp) {
                             if (response.timestamp) {
                                 fileInfo += ' • ' + relativeTime(response.timestamp);
                             }
-                            
+
                             var fileDiv = document.createElement('div');
                             fileDiv.className = 'file ' + r;
                             fileDiv.style.position = 'relative';
@@ -618,7 +618,7 @@ function relativeTime(unixTimestamp) {
     if (dropzoneElement) {
         dropzoneElement.appendChild(collectionDiv);
     }
-    
+
     // Add click handler for collection URL copy
     var collectionCopyButton = collectionDiv.querySelector('.resultcopy');
     if (collectionCopyButton) {
