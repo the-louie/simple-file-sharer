@@ -366,8 +366,9 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 	var remoteAddress     = request.ip;
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
+	var expectedChunkCount = parseInt(request.query.chunkCount) || 0;
 
-	log("Merge request:", {uuid, chunkID, originalFileName, collectionID});
+	log("Merge request:", {uuid, expectedChunkCount, originalFileName, collectionID});
 
 	var fileName;
 	try {
@@ -404,6 +405,13 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 		if (!rows || rows.length === 0) {
 			logError("No chunks found for uuid:", uuid);
 			response.status(404).end("No chunks found");
+			return;
+		}
+
+		// Validate that we have all expected chunks
+		if (expectedChunkCount > 0 && rows.length !== expectedChunkCount) {
+			logError("Chunk count mismatch for uuid:", uuid, "- expected:", expectedChunkCount, "got:", rows.length);
+			response.status(400).end("Incomplete upload - missing chunks");
 			return;
 		}
 
