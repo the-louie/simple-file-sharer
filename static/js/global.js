@@ -370,7 +370,12 @@ function humanFileSize(bytes, si) {
                     $(".file." + currentFileID + " .progressbar").css("opacity","0.5");
                     $(".file." + currentFileID + " .progressbar").css("background-color","#DDD");
                     $(".file." + currentFileID).css('background-color', '#DAA');
-                    $(".file." + currentFileID + " .progress .resulttextbox").val('Upload failed.');
+                    $(".file." + currentFileID + " .merging-status").remove(); // Clean up merging message
+                    
+                    // Display specific error message if available
+                    var errorMessage = e.data.error || 'Upload failed.';
+                    $(".file." + currentFileID + " .progress .resulttextbox").val(errorMessage);
+                    
                     allFiles[currentFileID] = 1;
                     currentFileID++;
                     handleNextFile();

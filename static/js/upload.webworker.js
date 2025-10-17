@@ -71,7 +71,11 @@ function uploadChunk (chunk, chunkIndex) {
 
         if (self.chunkRetries[chunkIndex] >= self.MAX_RETRIES) {
             console.error("Chunk", chunkIndex, "failed after", self.MAX_RETRIES, "retries - aborting upload");
-            self.postMessage({action:"FAIL", fileID:self.currentFileID});
+            self.postMessage({
+                action:"FAIL", 
+                fileID:self.currentFileID,
+                error: "Upload failed after multiple attempts. Please check your connection and try again."
+            });
             return;
         }
 
@@ -89,7 +93,27 @@ function uploadChunk (chunk, chunkIndex) {
     xhr.onreadystatechange = function () {
         if (xhr.readyState == 4) {
             if (xhr.status != 200) {
-                handleFailure("Chunk upload failed with status: " + xhr.status);
+                // Try to parse error response for user-friendly message
+                var errorReason = "Chunk upload failed with status: " + xhr.status;
+                if (xhr.status === 429 || xhr.status === 507) {
+                    // Quota exceeded - abort immediately (no retries)
+                    var quotaMsg = "Upload limit reached.";
+                    try {
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.error) {
+                            quotaMsg = errorResponse.error;
+                        }
+                    } catch (e) {}
+                    
+                    self.postMessage({
+                        action:"FAIL", 
+                        fileID:self.currentFileID,
+                        error: quotaMsg + " Please try again later."
+                    });
+                    return false;
+                }
+                
+                handleFailure(errorReason);
                 return false;
             }
 
@@ -191,7 +215,37 @@ function uploadNextChunk() {
             if (xhrMerge.readyState == 4) {
                 if (xhrMerge.status != 200) {
                     console.error("Merge failed with status:", xhrMerge.status);
-                    self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                    var errorMsg = "Upload failed. Please try again.";
+                    
+                    // Parse server error message if available
+                    try {
+                        var errorResponse = JSON.parse(xhrMerge.responseText);
+                        if (errorResponse.error) {
+                            // Map server errors to user-friendly messages
+                            if (xhrMerge.status === 403) {
+                                errorMsg = "This file type is not allowed. Please upload a different file.";
+                            } else if (xhrMerge.status === 429) {
+                                errorMsg = "Upload limit reached. Please try again later.";
+                            } else if (xhrMerge.status === 507) {
+                                errorMsg = "Server storage is full. Please contact support.";
+                            } else if (xhrMerge.status === 400) {
+                                errorMsg = "Invalid file data. Please try again.";
+                            } else {
+                                errorMsg = errorResponse.error;
+                            }
+                        }
+                    } catch (parseErr) {
+                        // Use status-based messages if can't parse response
+                        if (xhrMerge.status === 403) {
+                            errorMsg = "This file type is not allowed.";
+                        } else if (xhrMerge.status === 429) {
+                            errorMsg = "Upload limit reached. Try again later.";
+                        } else if (xhrMerge.status === 507) {
+                            errorMsg = "Server storage is full.";
+                        }
+                    }
+                    
+                    self.postMessage({action:"FAIL", fileID:self.currentFileID, error: errorMsg});
                 } else {
                     // report back that upload of file was successful!
                     try {
@@ -199,7 +253,11 @@ function uploadNextChunk() {
                         self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:response.fileName});
                     } catch (e) {
                         console.error("Failed to parse merge response:", e);
-                        self.postMessage({action:"FAIL", fileID:self.currentFileID});
+                        self.postMessage({
+                            action:"FAIL", 
+                            fileID:self.currentFileID,
+                            error: "Server error. Please try again."
+                        });
                     }
                 }
             }
@@ -207,12 +265,20 @@ function uploadNextChunk() {
 
         xhrMerge.onerror = function() {
             console.error("Network error during merge");
-            self.postMessage({action:"FAIL", fileID:self.currentFileID});
+            self.postMessage({
+                action:"FAIL", 
+                fileID:self.currentFileID,
+                error: "Network error. Please check your connection and try again."
+            });
         };
 
         xhrMerge.ontimeout = function() {
             console.error("Timeout during merge");
-            self.postMessage({action:"FAIL", fileID:self.currentFileID});
+            self.postMessage({
+                action:"FAIL", 
+                fileID:self.currentFileID,
+                error: "Upload took too long. Try a smaller file or check your connection."
+            });
         };
 
         xhrMerge.timeout = 60000; // 1 minute timeout for merge
