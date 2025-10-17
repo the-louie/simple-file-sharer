@@ -77,8 +77,18 @@ import sqlite from "sqlite3";
 var db 	   = new sqlite.Database(config.db_name);
 
 // Create table if it doesn't already exist.
-db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip INTEGER)");
-db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp);");
+db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOINCREMENT, fileName TEXT, sha TEXT UNIQUE, timestamp INTEGER DEFAULT (strftime('%s', 'now')), collectionID TEXT, fileSize INTEGER, remote_ip TEXT)", function(err) {
+	if (err) {
+		logError("Failed to create uploaded_files table:", err);
+		process.exit(1);
+	}
+});
+db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP default current_timestamp)", function(err) {
+	if (err) {
+		logError("Failed to create uploaded_chunks table:", err);
+		process.exit(1);
+	}
+});
 
 // Rate limiting configuration
 const loginLimiter = rateLimit({
@@ -429,8 +439,14 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 			stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
 			stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(err) {
 				if (err) {
-					logError("Error inserting file record:", err);
-					response.status(500).end("Error inserting file record");
+					if (err.code === 'SQLITE_CONSTRAINT') {
+						logError("Duplicate file ID detected (race condition):", fileName);
+						response.status(409).end("Duplicate file ID - please retry upload");
+					} else {
+						logError("Error inserting file record:", err);
+						response.status(500).end("Error inserting file record");
+					}
+					stmt.finalize();
 					return;
 				}
 				stmt.finalize();
