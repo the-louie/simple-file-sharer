@@ -1,5 +1,8 @@
 <!-- a9afa15a-f7f4-44c7-a9c4-e8c7e7b8b01e a0088406-a1b9-4d99-8885-70492ca387c8 -->
-# Simple File Sharer - Complete Modernization Review & Plan
+# Simple File Sharer - Version 2.0 Modernization Plan
+
+## Version 2.0 Goals
+This plan tracks the ongoing modernization from the legacy codebase to a modern, secure, high-performance file-sharing application.
 
 ## Top 25 Critical Bugs
 
@@ -65,19 +68,38 @@
 15. ✅ **Implement upload quotas** - COMPLETE: Commit `ba680e3`
 16. ✅ **Add audit logging** - COMPLETE: Commit `5e36dd8`
 
+### Performance & Upload Optimization (HIGH PRIORITY)
+
+17. **Adaptive chunk size with dynamic parallelism** - NOT STARTED (HIGH PRIORITY)
+   - **Current**: Fixed 2MB chunks, sequential uploads only
+   - **Proposed**: 
+     - Start optimistic: 5-10MB chunks with 3-5 parallel transfers
+     - Monitor: Track retry rate, timeout frequency, chunk failure patterns
+     - Backend signaling: Server sends `X-Upload-Performance: degraded|optimal` header based on load
+     - Frontend detection: Calculate success rate per sliding window (last 10 chunks)
+     - Dynamic degradation: Reduce to 2MB → 1MB → 512KB chunks, 5 → 3 → 2 → 1 parallel
+     - Re-optimization: Gradually increase when conditions improve (95%+ success rate)
+   - **Benefits**: 
+     - Fast uploads on good connections (3-5x faster with parallelism)
+     - Maintains reliability on poor connections (automatic fallback)
+     - Reduces server load during peak times (backend can signal degradation)
+     - Better mobile experience (adapts to varying network quality)
+   - **Implementation complexity**: Medium (client-side state machine, server-side monitoring)
+
 ### User Experience
 
-17. **Progressive Web App** - NOT STARTED
-18. **Drag & drop visual feedback** - PARTIALLY DONE (existing functionality maintained)
-19. **Upload queue management** - PARTIALLY DONE (sequential processing)
-20. **Preview thumbnails** - NOT STARTED
-21. **Dark mode support** - NOT STARTED
-22. **Responsive mobile design** - NOT STARTED
-23. **Accessibility improvements** - NOT STARTED
-24. **Internationalization (i18n)** - NOT STARTED
-25. ✅ **Better error messages** - COMPLETE: Commit `9b42724` - User-friendly error messages
+18. **Progressive Web App** - NOT STARTED
+19. **Drag & drop visual feedback** - PARTIALLY DONE (existing functionality maintained)
+20. **Upload queue management** - PARTIALLY DONE (sequential processing)
+21. **Preview thumbnails** - NOT STARTED
+22. **Dark mode support** - NOT STARTED
+23. **Responsive mobile design** - NOT STARTED
+24. **Accessibility improvements** - NOT STARTED
+25. **Internationalization (i18n)** - NOT STARTED
+26. ✅ **Better error messages** - COMPLETE: Commit `9b42724` - User-friendly error messages
 
-**IMPROVEMENTS COMPLETED: 10/25 (40%) - All security improvements complete, UX partially improved**
+**IMPROVEMENTS COMPLETED: 10/26 (38%) - All security improvements complete, UX partially improved**
+**HIGH PRIORITY NEXT**: Item #17 - Adaptive chunk size with dynamic parallelism
 
 ---
 
@@ -95,6 +117,9 @@
 - ✅ Sequential chunk uploads
 - ✅ 2MB chunk size
 - ❌ Not using tus.io protocol yet
+- ❌ No adaptive chunk sizing or parallel transfers (see Improvement #17 - HIGH PRIORITY)
+
+**Next Priority**: Implement adaptive chunk size with dynamic parallelism (Improvement #17) before full tus.io migration
 
 ### 4. Implement Proper Authentication & Authorization
 **Status**: PARTIALLY IMPROVED
@@ -294,7 +319,18 @@ f825aa3 feat: add periodic cleanup for orphaned chunk files
 
 ---
 
-*Last Updated: 2025-10-17*
-*Branch: 2025-overhaul*
-*Total Commits: 25*
+---
+
+## 🎯 NEXT HIGH-PRIORITY FEATURE
+
+**Improvement #17: Adaptive Chunk Size with Dynamic Parallelism**
+
+This feature will significantly improve upload performance while maintaining reliability across varying network conditions. It's the logical next step after completing all critical security and UX work.
+
+---
+
+*Last Updated: 2025-10-17*  
+*Branch: 2025-overhaul*  
+*Version: 2.0 Planning Phase*  
+*Total Commits: 26*
 
