@@ -152,16 +152,16 @@
 
 6. ✅ **Secure Session Cookies** - COMPLETE: Commit `dbffe57`
    - httpOnly, secure (prod), sameSite: lax, maxAge: 24h
-   
+
 7. ✅ **Download Filename Sanitization** - COMPLETE: Commit `ea565d5`
    - Removes control chars, path separators, traversal attempts
-   
+
 8. ✅ **Request Size Limits** - COMPLETE: Commit `e52a4f5`
    - Login: 1kb, Files: 10GB max, HTTP 413 with cleanup
-   
+
 9. ✅ **Timing Attack Prevention** - COMPLETE: Commit `be0cf71`
    - Constant-time string comparison using crypto.timingSafeEqual()
-   
+
 10. ✅ **Comprehensive Download Headers** - COMPLETE: Commit `1c3edad`
     - X-Download-Options, Cache-Control immutable, UTF-8 filenames
 
@@ -171,16 +171,16 @@
 
 1. ✅ **Accurate Progress Indicator** - COMPLETE: Commit `3e26b58`
    - Includes current chunk partial progress
-   
+
 2. ✅ **Merge Progress Indicator** - COMPLETE: Commit `c0a69f9`
    - Shows "Processing file..." during merge
-   
+
 3. ✅ **User-Friendly Error Messages** - COMPLETE: Commit `9b42724`
    - Actionable guidance for all error types
-   
+
 4. ✅ **Quota Information Display** - COMPLETE: Commit `7740789`
    - Real-time quota display with warnings
-   
+
 5. ✅ **Enhanced Collection View** - COMPLETE: Commit `63bcd2d`
    - File sizes and relative timestamps
 
@@ -240,7 +240,7 @@ Based on user input "1 d 2 a 3 c":
 
 **Additional work completed** (user requested):
 - ✅ Top 5 Security Enhancements (Tier 1)
-- ✅ Top 5 User Experience Enhancements  
+- ✅ Top 5 User Experience Enhancements
 - ✅ Top 5 Security Enhancements (Tier 2)
 - ✅ Multiple code review rounds
 
@@ -294,7 +294,7 @@ f825aa3 feat: add periodic cleanup for orphaned chunk files
 
 ---
 
-*Last Updated: 2025-10-17*  
-*Branch: 2025-overhaul*  
+*Last Updated: 2025-10-17*
+*Branch: 2025-overhaul*
 *Total Commits: 25*
 

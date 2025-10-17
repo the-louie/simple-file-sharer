@@ -259,23 +259,23 @@ function sanitizeFilename(filename) {
 	if (!filename || typeof filename !== 'string') {
 		return 'download';
 	}
-	
+
 	// Remove null bytes and control characters
 	var sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
-	
+
 	// Remove path separators and traversal attempts
 	sanitized = sanitized.replace(/[\/\\]/g, '_');
 	sanitized = sanitized.replace(/\.\./g, '_');
-	
+
 	// Remove leading dots (hidden files)
 	sanitized = sanitized.replace(/^\.+/, '');
-	
+
 	// Limit length to prevent issues
 	if (sanitized.length > 255) {
 		var ext = sanitized.match(/\.[^.]+$/)?.[0] || '';
 		sanitized = sanitized.substring(0, 255 - ext.length) + ext;
 	}
-	
+
 	// Fallback if everything was stripped
 	return sanitized || 'download';
 }
@@ -285,12 +285,12 @@ function timingSafeEqual(a, b) {
 	if (typeof a !== 'string' || typeof b !== 'string') {
 		return false;
 	}
-	
+
 	// Pad to same length to prevent length-based timing attacks
 	var maxLen = Math.max(a.length, b.length);
 	var aBuf = Buffer.from(a.padEnd(maxLen, '\0'), 'utf8');
 	var bBuf = Buffer.from(b.padEnd(maxLen, '\0'), 'utf8');
-	
+
 	try {
 		return crypto.timingSafeEqual(aBuf, bBuf);
 	} catch (e) {
@@ -882,14 +882,14 @@ app.post('/merge/',
 			if (fileSize > config.max_file_size_bytes) {
 				logError("File size exceeds limit:", fileSize, ">", config.max_file_size_bytes);
 				result_file.end(); // Close the stream
-				
+
 				// Delete the incomplete merged file
 				try {
 					fs.unlinkSync(config.upload_dir+'/'+fileName);
 				} catch (unlinkErr) {
 					logError("Error deleting oversized file:", unlinkErr);
 				}
-				
+
 				// Delete chunk files
 				fileList.forEach(function(chunkPath) {
 					try {
@@ -898,15 +898,15 @@ app.post('/merge/',
 						logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
 					}
 				});
-				
+
 				// Delete chunk records from database
 				db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
 					if (dbErr) {
 						logError("Error deleting chunk records for oversized file:", dbErr);
 					}
 				});
-				
-				response.status(413).json({ 
+
+				response.status(413).json({
 					error: "File size exceeds limit",
 					maxSize: config.max_file_size_bytes,
 					actualSize: fileSize
