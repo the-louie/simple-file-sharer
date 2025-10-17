@@ -25,7 +25,7 @@ app.use(helmet({
 	contentSecurityPolicy: {
 		directives: {
 			defaultSrc: ["'self'"],
-			scriptSrc: ["'self'", "'unsafe-inline'", "code.jquery.com"],
+			scriptSrc: ["'self'", "'unsafe-inline'", "https://code.jquery.com"],
 			styleSrc: ["'self'", "'unsafe-inline'"],
 			imgSrc: ["'self'", "data:", "blob:"],
 			connectSrc: ["'self'"],
@@ -602,7 +602,7 @@ app.post('/upload/',
 	request.on('end', async function () {
 		if (fileBuffer.length <= 0) {
 			logError("serveUploadChunks: fileBuffer empty");
-			response.status(431).end();
+			response.status(400).json({ error: "Empty file buffer" });
 			return false;
 		}
 
@@ -635,7 +635,7 @@ app.post('/upload/',
 		stmt.run(uuid, fileName, chunkID, function(err) {
 			if (err) {
 				logError("Database error:", err);
-				response.status(500).end("Database error");
+				response.status(500).json({ error: "Database error" });
 				return;
 			}
 			stmt.finalize();
@@ -646,7 +646,7 @@ app.post('/upload/',
 			chunkFile.end(function(err) {
 				if (err) {
 					logError("File write error:", err);
-					response.status(500).end("File write error");
+					response.status(500).json({ error: "File write error" });
 					return;
 				}
 
@@ -670,16 +670,22 @@ app.get('/d/:fileName/',
 
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
 	db.get(query, [sha], function(err, row) {
+		if (err) {
+			logError("Database error during download:", err);
+			response.status(500).send("Internal server error");
+			return;
+		}
+		
 		if (row === undefined || row.fileName === undefined) {
 			logError('ERROR: Unknown hash, "' + sha + '"');
-			response.status(404).end();
+			response.status(404).send("File not found");
 			return false;
 		}
 
 		var fileName = currentPath + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
 			logError('ERROR: No such file "' + fileName + '"');
-			response.status(404).end();
+			response.status(404).send("File not found");
 			return false;
 		}
 
@@ -736,13 +742,13 @@ app.post('/merge/',
 			fileName  	      = await hashId(originalFileName, remoteAddress);
 	} catch (err) {
 		logError("Error generating filename:", err);
-		response.status(500).end("Error generating filename");
+		response.status(500).json({ error: "Error generating filename" });
 		return;
 	}
 
 	if (!fileName) {
 		logError("Failed to create filename");
-		response.status(500).end("Failed to create filename");
+		response.status(500).json({ error: "Failed to create filename" });
 		return;
 	}
 
@@ -756,24 +762,26 @@ app.post('/merge/',
 	db.all(query, [uuid], function(err, rows) {
 		if (err) {
 			logError("Database query error:", err);
-			response.status(500).end("Database query error");
+			response.status(500).json({ error: "Database query error" });
 			return;
 		}
 
 		if (!rows || rows.length === 0) {
 			logError("No chunks found for uuid:", uuid);
-			response.status(404).end("No chunks found");
+			response.status(404).json({ error: "No chunks found" });
 			return;
 		}
 
 		// Validate that we have all expected chunks
 		if (expectedChunkCount > 0 && rows.length !== expectedChunkCount) {
 			logError("Chunk count mismatch for uuid:", uuid, "- expected:", expectedChunkCount, "got:", rows.length);
-			response.status(400).end("Incomplete upload - missing chunks");
+			response.status(400).json({ error: "Incomplete upload - missing chunks" });
 			return;
 		}
 
-		rows.forEach(function(row) {
+		var hadError = false;
+		for (var i = 0; i < rows.length; i++) {
+			var row = rows[i];
 			var chunkFileName = row.filename;
 
 			try {
@@ -783,10 +791,16 @@ app.post('/merge/',
 				fileList.push(config.upload_dir+'/pending/'+chunkFileName);
 			} catch (fileErr) {
 				logError("Error reading chunk file:", fileErr);
-				response.status(500).end("Error reading chunk file");
+				result_file.end(); // Close the stream
+				hadError = true;
+				response.status(500).json({ error: "Error reading chunk file" });
 				return;
 			}
-		});
+		}
+
+		if (hadError) {
+			return; // Don't proceed if there was an error
+		}
 
 		result_file.end(async function() {
 			// Validate file type using magic numbers
@@ -847,7 +861,7 @@ app.post('/merge/',
 			db.run("BEGIN TRANSACTION", function(err) {
 				if (err) {
 					logError("Error starting transaction:", err);
-					response.status(500).end("Database error");
+					response.status(500).json({ error: "Database error" });
 					return;
 				}
 
@@ -860,10 +874,10 @@ app.post('/merge/',
 						db.run("ROLLBACK", function() {
 							if (insertErr.code === 'SQLITE_CONSTRAINT') {
 								logError("Duplicate file ID detected (race condition):", fileName);
-								response.status(409).end("Duplicate file ID - please retry upload");
+								response.status(409).json({ error: "Duplicate file ID - please retry upload" });
 							} else {
 								logError("Error inserting file record:", insertErr);
-								response.status(500).end("Error inserting file record");
+								response.status(500).json({ error: "Error inserting file record" });
 							}
 						});
 						return;
@@ -875,22 +889,22 @@ app.post('/merge/',
 					deleteStmt.run(uuid, function(deleteErr) {
 						deleteStmt.finalize();
 
-						if (deleteErr) {
-							logError("Error deleting chunk records:", deleteErr);
-							// Rollback transaction - keep chunks in DB
-							db.run("ROLLBACK", function() {
-								response.status(500).end("Database error");
-							});
+					if (deleteErr) {
+						logError("Error deleting chunk records:", deleteErr);
+						// Rollback transaction - keep chunks in DB
+						db.run("ROLLBACK", function() {
+							response.status(500).json({ error: "Database error" });
+						});
+						return;
+					}
+
+					// Commit transaction - both operations succeeded
+					db.run("COMMIT", function(commitErr) {
+						if (commitErr) {
+							logError("Error committing transaction:", commitErr);
+							response.status(500).json({ error: "Database error" });
 							return;
 						}
-
-						// Commit transaction - both operations succeeded
-						db.run("COMMIT", function(commitErr) {
-							if (commitErr) {
-								logError("Error committing transaction:", commitErr);
-								response.status(500).end("Database error");
-								return;
-							}
 
 							// Only delete chunk files AFTER successful DB commit
 							fileList.forEach(function(file) {
@@ -925,15 +939,20 @@ app.get('/c/:collectionID',
 	var collectionID = request.params.collectionID;
 	var query = "SELECT filename, sha, fileSize, timestamp FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
 	db.all(query, [collectionID], function(err, rows) {
-		if(rows) {
+		if (err) {
+			logError("Database error fetching collection:", err);
+			response.status(500).json({ error: "Database error" });
+			return;
+		}
+		
+		if(rows && rows.length > 0) {
 			var files = rows.map(function(row) {
 				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize,timestamp:row.timestamp};
 			});
 
-			response.writeHead(200, "text/html");
-			response.end(JSON.stringify(files));
+			response.json(files);
 		} else {
-			response.status(404).end();
+			response.status(404).json({ error: "Collection not found" });
 			return false;
 		}
 	});
@@ -944,24 +963,24 @@ app.get('/api/quota', function (request, response) {
 	const remoteIP = request.ip;
 	const now = Math.floor(Date.now() / 1000);
 	const dayAgo = now - 86400;
-	
+
 	const quotaInfo = {
 		enabled: false,
 		global: {},
 		perIP: {}
 	};
-	
+
 	// Check if any quotas are configured
 	const hasQuotas = (config.max_storage_bytes && config.max_storage_bytes > 0) ||
 	                  (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) ||
 	                  (config.per_ip_daily_files && config.per_ip_daily_files > 0);
-	
+
 	if (!hasQuotas) {
 		return response.json(quotaInfo);
 	}
-	
+
 	quotaInfo.enabled = true;
-	
+
 	// Get global storage if configured
 	if (config.max_storage_bytes && config.max_storage_bytes > 0) {
 		db.get("SELECT SUM(fileSize) as total FROM uploaded_files", [], (err, row) => {
@@ -969,7 +988,7 @@ app.get('/api/quota', function (request, response) {
 				quotaInfo.global.used = row?.total || 0;
 				quotaInfo.global.limit = config.max_storage_bytes;
 			}
-			
+
 			// Get per-IP quotas if configured
 			if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 				db.get(
@@ -980,7 +999,7 @@ app.get('/api/quota', function (request, response) {
 							quotaInfo.perIP.bytesUsed = row2?.total || 0;
 							quotaInfo.perIP.bytesLimit = config.per_ip_daily_bytes;
 						}
-						
+
 						// Get per-IP file count
 						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 							db.get(
@@ -1026,7 +1045,7 @@ app.get('/api/quota', function (request, response) {
 						quotaInfo.perIP.bytesUsed = row?.total || 0;
 						quotaInfo.perIP.bytesLimit = config.per_ip_daily_bytes;
 					}
-					
+
 					if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 						db.get(
 							"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
