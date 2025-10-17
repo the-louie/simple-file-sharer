@@ -126,11 +126,20 @@ function uploadChunk (chunk, chunkIndex) {
     };
 
     xhr.upload.onprogress = function(e) {
+        // Calculate accurate progress including current chunk's partial progress
+        var currentChunkProgress = 0;
+        if (e.lengthComputable && e.total > 0) {
+            currentChunkProgress = e.loaded / e.total;
+        }
+        
+        // Total progress = (completed chunks + current chunk progress) / total chunks
+        var totalProgress = (self.chunksSent + currentChunkProgress) / self.chunkCount;
+        
         self.postMessage({
             action:"PROGRESS",
             fileID:self.currentFileID,
-            sent:(parseFloat(self.chunksSent)/self.chunkCount)}
-        );
+            sent: totalProgress
+        });
     };
 
     xhr.onerror = function() {
