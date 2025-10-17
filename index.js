@@ -254,6 +254,32 @@ function audit(eventType, remoteIP, username, details, status) {
 	log("AUDIT:", eventType, remoteIP, username, details, status);
 }
 
+// Sanitize filename for safe downloads
+function sanitizeFilename(filename) {
+	if (!filename || typeof filename !== 'string') {
+		return 'download';
+	}
+	
+	// Remove null bytes and control characters
+	let sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+	
+	// Remove path separators and traversal attempts
+	sanitized = sanitized.replace(/[\/\\]/g, '_');
+	sanitized = sanitized.replace(/\.\./g, '_');
+	
+	// Remove leading dots (hidden files)
+	sanitized = sanitized.replace(/^\.+/, '');
+	
+	// Limit length to prevent issues
+	if (sanitized.length > 255) {
+		const ext = sanitized.match(/\.[^.]+$/)?.[0] || '';
+		sanitized = sanitized.substring(0, 255 - ext.length) + ext;
+	}
+	
+	// Fallback if everything was stripped
+	return sanitized || 'download';
+}
+
 var config;
 
 // Validate required environment variables
@@ -702,12 +728,19 @@ app.get('/d/:fileName/',
 
 		var header = {};
 		var realFileName = row.fileName;
+		var safeFileName = sanitizeFilename(realFileName);
 
 		var mimeType = mime.getType(realFileName) || 'application/octet-stream';
 		if (mimeType && mimeType.split('/')[0] == 'image') {
 			log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'view' }, 'SUCCESS');
-			response.sendFile(fileName, {'headers':{ 'Content-Type': mimeType}}, function(err) {
+			response.sendFile(fileName, {
+				'headers':{ 
+					'Content-Type': mimeType,
+					'Content-Disposition': 'inline; filename="' + safeFileName + '"',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}, function(err) {
 			    if (err) {
 			      logError(err);
 			      response.status(err.status).end();
@@ -716,7 +749,11 @@ app.get('/d/:fileName/',
 		} else {
 			log(request.ip,'downloading" ' + fileName + '"');
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'download' }, 'SUCCESS');
-			response.download(fileName, realFileName, function(err) {
+			response.download(fileName, safeFileName, {
+				headers: {
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}, function(err) {
 			    if (err) {
 			      logError(err);
 			      response.status(err.status).end();
