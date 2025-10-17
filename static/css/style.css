@@ -76,6 +76,24 @@ body {
 	position: relative;
 }
 
+#quota-info {
+	background-color: #f9fff9;
+	border: 1px solid #cdc;
+	border-radius: 4px;
+	color: #585;
+	font-family: Arial, sans-serif;
+	font-size: 0.85em;
+	margin: 10px auto;
+	padding: 8px 12px;
+	text-align: center;
+	width: 870px;
+}
+
+#quota-info .quota-warning {
+	color: #c85;
+	font-weight: bold;
+}
+
 #footer {
 	margin-top: 20px;
 	text-align: center;

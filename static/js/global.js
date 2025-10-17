@@ -221,6 +221,55 @@ function humanFileSize(bytes, si) {
     // Initialize the upload warning
     setupUploadWarning();
 
+    // Fetch and display quota information
+    function loadQuotaInfo() {
+        $.ajax({
+            url: '/api/quota',
+            method: 'GET',
+            success: function(data) {
+                if (data.enabled) {
+                    var quotaText = '';
+                    var isWarning = false;
+                    
+                    if (data.perIP.bytesLimit) {
+                        var used = humanFileSize(data.perIP.bytesUsed || 0, true);
+                        var limit = humanFileSize(data.perIP.bytesLimit, true);
+                        var percentUsed = ((data.perIP.bytesUsed || 0) / data.perIP.bytesLimit) * 100;
+                        quotaText += 'Daily storage: <strong>' + used + ' / ' + limit + '</strong>';
+                        if (percentUsed > 90) isWarning = true;
+                    }
+                    
+                    if (data.perIP.filesLimit) {
+                        if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
+                        var filesUsed = data.perIP.filesUsed || 0;
+                        var filesLimit = data.perIP.filesLimit;
+                        var filesPercent = (filesUsed / filesLimit) * 100;
+                        quotaText += 'Daily files: <strong>' + filesUsed + ' / ' + filesLimit + '</strong>';
+                        if (filesPercent > 90) isWarning = true;
+                    }
+                    
+                    if (data.global.limit) {
+                        if (quotaText) quotaText += ' &nbsp;|&nbsp; ';
+                        var globalUsed = humanFileSize(data.global.used || 0, true);
+                        var globalLimit = humanFileSize(data.global.limit, true);
+                        quotaText += 'Server: <strong>' + globalUsed + ' / ' + globalLimit + '</strong>';
+                    }
+                    
+                    if (quotaText) {
+                        var quotaHtml = quotaText;
+                        if (isWarning) {
+                            quotaHtml = '<span class="quota-warning">⚠ Approaching limit: </span>' + quotaText;
+                        }
+                        $('#quota-info').html(quotaHtml).show();
+                    }
+                }
+            },
+            error: function() {
+                console.log('Failed to load quota info');
+            }
+        });
+    }
+
     function handleNewFiles(files) {
         var count = files.length;
         if (count > 0) {
@@ -362,6 +411,7 @@ function humanFileSize(bytes, si) {
                     $(".file." + currentFileID + " .progressbar").css("display","none");
                     $(".file." + currentFileID + " .merging-status").remove(); // Clean up merging message
                     uploadFinish(e.data.fileName, currentFileID);
+                    loadQuotaInfo(); // Update quota display after successful upload
                     allFiles[currentFileID] = 1;
                     currentFileID++;
                     handleNextFile();
@@ -450,6 +500,11 @@ function humanFileSize(bytes, si) {
     $(".collection .resultcopy").off('click').on('click', function() {
         copyToClipboard(uuidurl, $(this));
     });
+
+    // Load quota on page load (if not collection view)
+    if (!getUrlVars().c) {
+        loadQuotaInfo();
+    }
 
   });
 

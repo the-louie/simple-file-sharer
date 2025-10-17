@@ -795,7 +795,7 @@ app.post('/merge/',
 				const detectedType = await fileTypeFromFile(finalFilePath);
 				if (detectedType) {
 					log("Detected file type:", detectedType.mime, "for file:", fileName);
-					
+
 					// Check if file type is blocked
 					const blockedTypes = config.blocked_mime_types || [];
 					if (blockedTypes.includes(detectedType.mime)) {
@@ -805,14 +805,14 @@ app.post('/merge/',
 							mimeType: detectedType.mime,
 							uuid
 						}, 'BLOCKED');
-						
+
 						// Delete the merged file
 						try {
 							fs.unlinkSync(finalFilePath);
 						} catch (unlinkErr) {
 							logError("Error deleting blocked file:", unlinkErr);
 						}
-						
+
 						// Delete chunk files
 						fileList.forEach(function(chunkPath) {
 							try {
@@ -821,14 +821,14 @@ app.post('/merge/',
 								logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
 							}
 						});
-						
+
 						// Delete chunk records from database
 						db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
 							if (dbErr) {
 								logError("Error deleting chunk records for blocked file:", dbErr);
 							}
 						});
-						
+
 						response.status(403).json({
 							error: "File type not allowed",
 							type: detectedType.mime
@@ -937,6 +937,129 @@ app.get('/c/:collectionID',
 			return false;
 		}
 	});
+});
+
+// API endpoint to get current quota usage
+app.get('/api/quota', function (request, response) {
+	const remoteIP = request.ip;
+	const now = Math.floor(Date.now() / 1000);
+	const dayAgo = now - 86400;
+	
+	const quotaInfo = {
+		enabled: false,
+		global: {},
+		perIP: {}
+	};
+	
+	// Check if any quotas are configured
+	const hasQuotas = (config.max_storage_bytes && config.max_storage_bytes > 0) ||
+	                  (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) ||
+	                  (config.per_ip_daily_files && config.per_ip_daily_files > 0);
+	
+	if (!hasQuotas) {
+		return response.json(quotaInfo);
+	}
+	
+	quotaInfo.enabled = true;
+	
+	// Get global storage if configured
+	if (config.max_storage_bytes && config.max_storage_bytes > 0) {
+		db.get("SELECT SUM(fileSize) as total FROM uploaded_files", [], (err, row) => {
+			if (!err) {
+				quotaInfo.global.used = row?.total || 0;
+				quotaInfo.global.limit = config.max_storage_bytes;
+			}
+			
+			// Get per-IP quotas if configured
+			if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
+				db.get(
+					"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+					[remoteIP, dayAgo],
+					(err2, row2) => {
+						if (!err2) {
+							quotaInfo.perIP.bytesUsed = row2?.total || 0;
+							quotaInfo.perIP.bytesLimit = config.per_ip_daily_bytes;
+						}
+						
+						// Get per-IP file count
+						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+							db.get(
+								"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+								[remoteIP, dayAgo],
+								(err3, row3) => {
+									if (!err3) {
+										quotaInfo.perIP.filesUsed = row3?.count || 0;
+										quotaInfo.perIP.filesLimit = config.per_ip_daily_files;
+									}
+									response.json(quotaInfo);
+								}
+							);
+						} else {
+							response.json(quotaInfo);
+						}
+					}
+				);
+			} else if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+				db.get(
+					"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+					[remoteIP, dayAgo],
+					(err3, row3) => {
+						if (!err3) {
+							quotaInfo.perIP.filesUsed = row3?.count || 0;
+							quotaInfo.perIP.filesLimit = config.per_ip_daily_files;
+						}
+						response.json(quotaInfo);
+					}
+				);
+			} else {
+				response.json(quotaInfo);
+			}
+		});
+	} else {
+		// No global quota, check per-IP only
+		if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
+			db.get(
+				"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+				[remoteIP, dayAgo],
+				(err, row) => {
+					if (!err) {
+						quotaInfo.perIP.bytesUsed = row?.total || 0;
+						quotaInfo.perIP.bytesLimit = config.per_ip_daily_bytes;
+					}
+					
+					if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+						db.get(
+							"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+							[remoteIP, dayAgo],
+							(err2, row2) => {
+								if (!err2) {
+									quotaInfo.perIP.filesUsed = row2?.count || 0;
+									quotaInfo.perIP.filesLimit = config.per_ip_daily_files;
+								}
+								response.json(quotaInfo);
+							}
+						);
+					} else {
+						response.json(quotaInfo);
+					}
+				}
+			);
+		} else if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+			db.get(
+				"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+				[remoteIP, dayAgo],
+				(err, row) => {
+					if (!err) {
+						quotaInfo.perIP.filesUsed = row?.count || 0;
+						quotaInfo.perIP.filesLimit = config.per_ip_daily_files;
+					}
+					response.json(quotaInfo);
+				}
+			);
+		} else {
+			response.json(quotaInfo);
+		}
+	}
 });
 
 var server = app.listen(config.port, config.ip, function () {
