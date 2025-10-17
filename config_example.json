@@ -20,7 +20,11 @@
 		"application/x-ms-dos-executable",
 		"application/vnd.microsoft.portable-executable"
 	],
+	"max_storage_bytes": 107374182400,
+	"per_ip_daily_bytes": 1073741824,
+	"per_ip_daily_files": 100,
 	"_comment_secret": "Set SESSION_SECRET environment variable - do not store secrets in this file!",
 	"_comment_password": "Hash password with: node -e \"require('bcrypt').hash('yourpassword', 10).then(console.log)\"",
-	"_comment_blocked_types": "Blocked MIME types based on magic numbers. Default blocks executables and scripts."
+	"_comment_blocked_types": "Blocked MIME types based on magic numbers. Default blocks executables and scripts.",
+	"_comment_quotas": "max_storage_bytes: 100GB global, per_ip_daily_bytes: 1GB per IP per day, per_ip_daily_files: 100 files per IP per day. Set to 0 to disable."
 }

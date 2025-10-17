@@ -62,6 +62,186 @@ function handleValidationErrors(request, response, next) {
 	next();
 }
 
+// Upload quota check function
+async function checkUploadQuotas(remoteIP) {
+	const now = Math.floor(Date.now() / 1000);
+	const dayAgo = now - 86400; // 24 hours ago
+	
+	return new Promise((resolve, reject) => {
+		// Check global storage quota
+		if (config.max_storage_bytes && config.max_storage_bytes > 0) {
+			db.get("SELECT SUM(fileSize) as total FROM uploaded_files", [], (err, row) => {
+				if (err) {
+					return reject({ error: "Database error", code: 500 });
+				}
+				
+				const totalStorage = row?.total || 0;
+				if (totalStorage >= config.max_storage_bytes) {
+					log("Global storage quota exceeded:", totalStorage, ">=", config.max_storage_bytes);
+					return reject({ 
+						error: "Server storage quota exceeded", 
+						code: 507,
+						retryAfter: 86400 
+					});
+				}
+				
+				// Check per-IP daily storage quota
+				if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
+					db.get(
+						"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+						[remoteIP, dayAgo],
+						(err2, row2) => {
+							if (err2) {
+								return reject({ error: "Database error", code: 500 });
+							}
+							
+							const ipDailyStorage = row2?.total || 0;
+							if (ipDailyStorage >= config.per_ip_daily_bytes) {
+								log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
+								return reject({ 
+									error: "Daily upload quota exceeded", 
+									code: 429,
+									retryAfter: 86400 
+								});
+							}
+							
+							// Check per-IP daily file count quota
+							if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+								db.get(
+									"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+									[remoteIP, dayAgo],
+									(err3, row3) => {
+										if (err3) {
+											return reject({ error: "Database error", code: 500 });
+										}
+										
+										const ipDailyFiles = row3?.count || 0;
+										if (ipDailyFiles >= config.per_ip_daily_files) {
+											log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+											return reject({ 
+												error: "Daily file upload limit exceeded", 
+												code: 429,
+												retryAfter: 86400 
+											});
+										}
+										
+										resolve(true);
+									}
+								);
+							} else {
+								resolve(true);
+							}
+						}
+					);
+				} else {
+					// No per-IP quota, check per-IP file count only
+					if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+						db.get(
+							"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+							[remoteIP, dayAgo],
+							(err3, row3) => {
+								if (err3) {
+									return reject({ error: "Database error", code: 500 });
+								}
+								
+								const ipDailyFiles = row3?.count || 0;
+								if (ipDailyFiles >= config.per_ip_daily_files) {
+									log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+									return reject({ 
+										error: "Daily file upload limit exceeded", 
+										code: 429,
+										retryAfter: 86400 
+									});
+								}
+								
+								resolve(true);
+							}
+						);
+					} else {
+						resolve(true);
+					}
+				}
+			});
+		} else {
+			// No global quota, check per-IP quotas
+			if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
+				db.get(
+					"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+					[remoteIP, dayAgo],
+					(err, row) => {
+						if (err) {
+							return reject({ error: "Database error", code: 500 });
+						}
+						
+						const ipDailyStorage = row?.total || 0;
+						if (ipDailyStorage >= config.per_ip_daily_bytes) {
+							log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
+							return reject({ 
+								error: "Daily upload quota exceeded", 
+								code: 429,
+								retryAfter: 86400 
+							});
+						}
+						
+						// Check per-IP daily file count quota
+						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+							db.get(
+								"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+								[remoteIP, dayAgo],
+								(err2, row2) => {
+									if (err2) {
+										return reject({ error: "Database error", code: 500 });
+									}
+									
+									const ipDailyFiles = row2?.count || 0;
+									if (ipDailyFiles >= config.per_ip_daily_files) {
+										log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+										return reject({ 
+											error: "Daily file upload limit exceeded", 
+											code: 429,
+											retryAfter: 86400 
+										});
+									}
+									
+									resolve(true);
+								}
+							);
+						} else {
+							resolve(true);
+						}
+					}
+				);
+			} else if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
+				// Only file count quota
+				db.get(
+					"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
+					[remoteIP, dayAgo],
+					(err, row) => {
+						if (err) {
+							return reject({ error: "Database error", code: 500 });
+						}
+						
+						const ipDailyFiles = row?.count || 0;
+						if (ipDailyFiles >= config.per_ip_daily_files) {
+							log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+							return reject({ 
+								error: "Daily file upload limit exceeded", 
+								code: 429,
+								retryAfter: 86400 
+							});
+						}
+						
+						resolve(true);
+					}
+				);
+			} else {
+				// No quotas configured
+				resolve(true);
+			}
+		}
+	});
+}
+
 var config;
 
 // Validate required environment variables
@@ -110,7 +290,10 @@ try {
 			"application/x-bat",
 			"application/x-ms-dos-executable",
 			"application/vnd.microsoft.portable-executable"
-		]
+		],
+		"max_storage_bytes": 107374182400,
+		"per_ip_daily_bytes": 1073741824,
+		"per_ip_daily_files": 100
 	};
 }
 
@@ -380,7 +563,7 @@ app.post('/upload/',
 		fileBuffer = Buffer.concat([fileBuffer, inBuffer]);
 	});
 
-	request.on('end', function () {
+	request.on('end', async function () {
 		if (fileBuffer.length <= 0) {
 			logError("serveUploadChunks: fileBuffer empty");
 			response.status(431).end();
@@ -390,6 +573,19 @@ app.post('/upload/',
 		var uuid              = request.query.uuid;
 		var chunkID           = request.query.chunkIndex;
 		var remoteAddress     = request.ip;
+
+		// Check quotas for first chunk only
+		if (parseInt(chunkID) === 0) {
+			try {
+				await checkUploadQuotas(remoteAddress);
+			} catch (quotaError) {
+				logError("Quota check failed:", quotaError);
+				response.status(quotaError.code).set('Retry-After', quotaError.retryAfter || 3600).json({
+					error: quotaError.error
+				});
+				return;
+			}
+		}
 
 		var fileName          = crypto.createHash('sha256').update(
 									chunkID +
