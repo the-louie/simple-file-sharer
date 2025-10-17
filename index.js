@@ -423,37 +423,68 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 		});
 
 		result_file.end(function() {
-			fileList.forEach(function(file) {
-				fs.unlink(file, function (err) {
-					if (err) logError("Error deleting chunk file:", err);
-				});
-			});
-		});
-
-		var stmt;
-		stmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
-		stmt.run(uuid, function(err) {
-			if (err) logError("Error deleting chunks:", err);
-			stmt.finalize();
-
-			stmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
-			stmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(err) {
+			// Start transaction for atomic DB operations
+			db.run("BEGIN TRANSACTION", function(err) {
 				if (err) {
-					if (err.code === 'SQLITE_CONSTRAINT') {
-						logError("Duplicate file ID detected (race condition):", fileName);
-						response.status(409).end("Duplicate file ID - please retry upload");
-					} else {
-						logError("Error inserting file record:", err);
-						response.status(500).end("Error inserting file record");
-					}
-					stmt.finalize();
+					logError("Error starting transaction:", err);
+					response.status(500).end("Database error");
 					return;
 				}
-				stmt.finalize();
 
-				response.writeHead(200, {'Content-Type': 'application/json'});
-				response.write(JSON.stringify({'fileName':fileName}));
-				response.end();
+				// First, insert the file record
+				var insertStmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
+				insertStmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(insertErr) {
+					if (insertErr) {
+						insertStmt.finalize();
+						// Rollback transaction on error
+						db.run("ROLLBACK", function() {
+							if (insertErr.code === 'SQLITE_CONSTRAINT') {
+								logError("Duplicate file ID detected (race condition):", fileName);
+								response.status(409).end("Duplicate file ID - please retry upload");
+							} else {
+								logError("Error inserting file record:", insertErr);
+								response.status(500).end("Error inserting file record");
+							}
+						});
+						return;
+					}
+					insertStmt.finalize();
+
+					// Delete chunk records from database
+					var deleteStmt = db.prepare('DELETE FROM uploaded_chunks WHERE uuid = ?');
+					deleteStmt.run(uuid, function(deleteErr) {
+						deleteStmt.finalize();
+						
+						if (deleteErr) {
+							logError("Error deleting chunk records:", deleteErr);
+							// Rollback transaction - keep chunks in DB
+							db.run("ROLLBACK", function() {
+								response.status(500).end("Database error");
+							});
+							return;
+						}
+
+						// Commit transaction - both operations succeeded
+						db.run("COMMIT", function(commitErr) {
+							if (commitErr) {
+								logError("Error committing transaction:", commitErr);
+								response.status(500).end("Database error");
+								return;
+							}
+
+							// Only delete chunk files AFTER successful DB commit
+							fileList.forEach(function(file) {
+								fs.unlink(file, function (err) {
+									if (err) logError("Error deleting chunk file:", err);
+								});
+							});
+
+							response.writeHead(200, {'Content-Type': 'application/json'});
+							response.write(JSON.stringify({'fileName':fileName}));
+							response.end();
+						});
+					});
+				});
 			});
 		});
 	});
