@@ -11,6 +11,7 @@ import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { body, query, param, validationResult } from "express-validator";
+import { fileTypeFromFile } from "file-type";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -99,6 +100,17 @@ try {
 		"randomId": true,
 		// "hashId": false,
 		// "short_hash": true,
+		"blocked_mime_types": [
+			"application/x-msdownload",
+			"application/x-msdos-program",
+			"application/x-executable",
+			"application/x-dosexec",
+			"application/x-msi",
+			"application/x-sh",
+			"application/x-bat",
+			"application/x-ms-dos-executable",
+			"application/vnd.microsoft.portable-executable"
+		]
 	};
 }
 
@@ -541,7 +553,56 @@ app.post('/merge/',
 			}
 		});
 
-		result_file.end(function() {
+		result_file.end(async function() {
+			// Validate file type using magic numbers
+			const finalFilePath = config.upload_dir+'/'+fileName;
+			try {
+				const detectedType = await fileTypeFromFile(finalFilePath);
+				if (detectedType) {
+					log("Detected file type:", detectedType.mime, "for file:", fileName);
+					
+				// Check if file type is blocked
+				const blockedTypes = config.blocked_mime_types || [];
+				if (blockedTypes.includes(detectedType.mime)) {
+					logError("Blocked file type detected:", detectedType.mime, "for file:", fileName);
+					
+					// Delete the merged file
+					try {
+						fs.unlinkSync(finalFilePath);
+					} catch (unlinkErr) {
+						logError("Error deleting blocked file:", unlinkErr);
+					}
+					
+					// Delete chunk files
+					fileList.forEach(function(chunkPath) {
+						try {
+							fs.unlinkSync(chunkPath);
+						} catch (chunkUnlinkErr) {
+							logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
+						}
+					});
+					
+					// Delete chunk records from database
+					db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
+						if (dbErr) {
+							logError("Error deleting chunk records for blocked file:", dbErr);
+						}
+					});
+					
+					response.status(403).json({
+						error: "File type not allowed",
+						type: detectedType.mime
+					});
+					return;
+				}
+				} else {
+					log("Could not detect file type for:", fileName, "- allowing upload");
+				}
+			} catch (typeErr) {
+				logError("Error detecting file type:", typeErr);
+				// Continue anyway - don't block if detection fails
+			}
+			
 			// Start transaction for atomic DB operations
 			db.run("BEGIN TRANSACTION", function(err) {
 				if (err) {

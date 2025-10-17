@@ -9,6 +9,18 @@
 		"username": "admin",
 		"password": "$2b$10$EXAMPLE_BCRYPT_HASH_REPLACE_WITH_YOUR_HASHED_PASSWORD"
 	},
+	"blocked_mime_types": [
+		"application/x-msdownload",
+		"application/x-msdos-program",
+		"application/x-executable",
+		"application/x-dosexec",
+		"application/x-msi",
+		"application/x-sh",
+		"application/x-bat",
+		"application/x-ms-dos-executable",
+		"application/vnd.microsoft.portable-executable"
+	],
 	"_comment_secret": "Set SESSION_SECRET environment variable - do not store secrets in this file!",
-	"_comment_password": "Hash password with: node -e \"require('bcrypt').hash('yourpassword', 10).then(console.log)\""
+	"_comment_password": "Hash password with: node -e \"require('bcrypt').hash('yourpassword', 10).then(console.log)\"",
+	"_comment_blocked_types": "Blocked MIME types based on magic numbers. Default blocks executables and scripts."
 }

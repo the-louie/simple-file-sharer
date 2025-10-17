@@ -12,6 +12,7 @@
     "express-rate-limit": "^8.1.0",
     "express-session": "^1.18.0",
     "express-validator": "^7.2.1",
+    "file-type": "^21.0.0",
     "helmet": "^8.1.0",
     "lodash": "^4.17.21",
     "mime": "^4.0.4",
