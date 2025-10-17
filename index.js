@@ -10,6 +10,7 @@ import passportLocal from "passport-local";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import { body, query, param, validationResult } from "express-validator";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -45,6 +46,19 @@ function log(...args) {
 
 function logError(...args) {
 	console.error(new Date().toISOString(), ...args);
+}
+
+// Validation error handler middleware
+function handleValidationErrors(request, response, next) {
+	const errors = validationResult(request);
+	if (!errors.isEmpty()) {
+		logError('Validation failed:', errors.array());
+		return response.status(400).json({ 
+			error: 'Invalid input', 
+			details: errors.array() 
+		});
+	}
+	next();
 }
 
 var config;
@@ -209,6 +223,9 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	});
 	app.post('/login',
 	  loginLimiter, // Apply rate limiting to login attempts
+	  body('username').trim().notEmpty().withMessage('Username is required'),
+	  body('password').notEmpty().withMessage('Password is required'),
+	  handleValidationErrors,
 	  passport.authenticate('local', {
 		successRedirect: '/',
 		failureRedirect: '/login'
@@ -339,7 +356,12 @@ function shortenHash(hash) {
 }
 
 
-app.post('/upload/', uploadLimiter, function(request, response) {
+app.post('/upload/', 
+	uploadLimiter,
+	query('chunkIndex').isInt({ min: 0 }).withMessage('chunkIndex must be a non-negative integer'),
+	query('uuid').isUUID(4).withMessage('uuid must be a valid UUID v4'),
+	handleValidationErrors,
+	function(request, response) {
 	var fileBuffer = Buffer.from("", 'binary');
 	request.on('data', function (postDataChunk) {
 		var inBuffer = Buffer.from(postDataChunk, 'binary');
@@ -394,7 +416,11 @@ app.post('/upload/', uploadLimiter, function(request, response) {
 
 });
 
-app.get('/d/:fileName/', downloadLimiter, function (request, response) {
+app.get('/d/:fileName/', 
+	downloadLimiter,
+	param('fileName').matches(/^[A-Za-z0-9\-_\.~]+$/).withMessage('Invalid file name format'),
+	handleValidationErrors,
+	function (request, response) {
 	var sha = request.params.fileName.replace(/\.[A-Za-z0-9]{3}$/,"");
 
 	var query = "SELECT fileName FROM uploaded_files WHERE sha = ?";
@@ -438,7 +464,14 @@ app.get('/d/:fileName/', downloadLimiter, function (request, response) {
 });
 
 // FIXME: async
-app.post('/merge/', uploadLimiter, async function (request, response) {
+app.post('/merge/', 
+	uploadLimiter,
+	query('name').trim().notEmpty().isLength({ max: 255 }).withMessage('File name must be 1-255 characters'),
+	query('chunkCount').isInt({ min: 1 }).withMessage('chunkCount must be a positive integer'),
+	query('uuid').isUUID(4).withMessage('uuid must be a valid UUID v4'),
+	query('collectionID').optional().isUUID(4).withMessage('collectionID must be a valid UUID v4'),
+	handleValidationErrors,
+	async function (request, response) {
 	var uuid              = request.query.uuid;
 	var chunkID           = request.query.chunkIndex;
 	var remoteAddress     = request.ip;
@@ -576,7 +609,10 @@ app.post('/merge/', uploadLimiter, async function (request, response) {
 	});
 });
 
-app.get('/c/:collectionID', function (request, response) {
+app.get('/c/:collectionID',
+	param('collectionID').isUUID(4).withMessage('collectionID must be a valid UUID v4'),
+	handleValidationErrors,
+	function (request, response) {
 	var collectionID = request.params.collectionID;
 	var query = "SELECT filename, sha, fileSize FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
 	db.all(query, [collectionID], function(err, rows) {
