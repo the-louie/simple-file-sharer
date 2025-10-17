@@ -11,13 +11,15 @@ Usage
 1. Clone the repository or download and extract the files.
 2. Install Node.js if you haven't already.
 3. Go to the directory where index.js etc. are.
-4. **Set the required SESSION_SECRET environment variable:**
+4. **Set the required environment variables:**
    ```bash
    export SESSION_SECRET=$(openssl rand -hex 32)
+   export NODE_ENV=production  # Optional: enables secure cookies for HTTPS
    ```
    Or create a `.env` file (not tracked in git):
    ```bash
    SESSION_SECRET=your_secret_key_here_min_32_chars
+   NODE_ENV=production  # Set to 'production' for HTTPS deployments
    ```
 5. Edit config.json to customize your configuration:
    - **Hash your password** (REQUIRED for security):
@@ -54,10 +56,11 @@ Docker Usage
    - Change `"ip"` to `"0.0.0.0"` to allow external connections
    - Change `"db_name"` to `"/data/memory.db"` for database persistence
    - Customize port, authentication, etc. as needed
-5. Build and start the container with SESSION_SECRET:
+5. Build and start the container with environment variables:
    ```bash
-   SESSION_SECRET=your_generated_secret_here docker-compose up -d
+   SESSION_SECRET=your_generated_secret_here NODE_ENV=production docker-compose up -d
    ```
+   **Note**: Set `NODE_ENV=production` for HTTPS deployments to enable secure cookies.
 6. Access the application at `http://localhost:9898`
 
 ### Docker Commands

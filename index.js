@@ -261,7 +261,7 @@ function sanitizeFilename(filename) {
 	}
 	
 	// Remove null bytes and control characters
-	let sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+	var sanitized = filename.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
 	
 	// Remove path separators and traversal attempts
 	sanitized = sanitized.replace(/[\/\\]/g, '_');
@@ -272,7 +272,7 @@ function sanitizeFilename(filename) {
 	
 	// Limit length to prevent issues
 	if (sanitized.length > 255) {
-		const ext = sanitized.match(/\.[^.]+$/)?.[0] || '';
+		var ext = sanitized.match(/\.[^.]+$/)?.[0] || '';
 		sanitized = sanitized.substring(0, 255 - ext.length) + ext;
 	}
 	
@@ -287,9 +287,9 @@ function timingSafeEqual(a, b) {
 	}
 	
 	// Pad to same length to prevent length-based timing attacks
-	const maxLen = Math.max(a.length, b.length);
-	const aBuf = Buffer.from(a.padEnd(maxLen, '\0'), 'utf8');
-	const bBuf = Buffer.from(b.padEnd(maxLen, '\0'), 'utf8');
+	var maxLen = Math.max(a.length, b.length);
+	var aBuf = Buffer.from(a.padEnd(maxLen, '\0'), 'utf8');
+	var bBuf = Buffer.from(b.padEnd(maxLen, '\0'), 'utf8');
 	
 	try {
 		return crypto.timingSafeEqual(aBuf, bBuf);
@@ -469,9 +469,9 @@ const downloadLimiter = rateLimit({
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
-	app.use(session({ 
-		secret: config.secret, 
-		resave: false, 
+	app.use(session({
+		secret: config.secret,
+		resave: false,
 		saveUninitialized: false,
 		name: 'sid', // Non-default name to prevent fingerprinting
 		cookie: {
@@ -750,7 +750,7 @@ app.get('/d/:fileName/',
 		var header = {};
 		var realFileName = row.fileName;
 		var safeFileName = sanitizeFilename(realFileName);
-		
+
 		// Encode filename for Content-Disposition (RFC 5987 for UTF-8 support)
 		var encodedFileName = encodeURIComponent(safeFileName);
 
@@ -759,7 +759,7 @@ app.get('/d/:fileName/',
 			log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'view' }, 'SUCCESS');
 			response.sendFile(fileName, {
-				'headers':{ 
+				'headers':{
 					'Content-Type': mimeType,
 					'Content-Disposition': 'inline; filename="' + safeFileName + '"; filename*=UTF-8\'\'' + encodedFileName,
 					'X-Content-Type-Options': 'nosniff',
@@ -889,6 +889,22 @@ app.post('/merge/',
 				} catch (unlinkErr) {
 					logError("Error deleting oversized file:", unlinkErr);
 				}
+				
+				// Delete chunk files
+				fileList.forEach(function(chunkPath) {
+					try {
+						fs.unlinkSync(chunkPath);
+					} catch (chunkUnlinkErr) {
+						logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
+					}
+				});
+				
+				// Delete chunk records from database
+				db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid], function(dbErr) {
+					if (dbErr) {
+						logError("Error deleting chunk records for oversized file:", dbErr);
+					}
+				});
 				
 				response.status(413).json({ 
 					error: "File size exceeds limit",
