@@ -423,7 +423,18 @@ const downloadLimiter = rateLimit({
 
 // auth stuff
 if (config.authdetails && config.authdetails.username && config.authdetails.password) {
-	app.use(session({ secret: config.secret, resave: false, saveUninitialized: false }));
+	app.use(session({ 
+		secret: config.secret, 
+		resave: false, 
+		saveUninitialized: false,
+		name: 'sid', // Non-default name to prevent fingerprinting
+		cookie: {
+			httpOnly: true, // Prevent XSS access to cookies
+			secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+			sameSite: 'lax', // CSRF protection while allowing navigation
+			maxAge: 24 * 60 * 60 * 1000 // 24 hours
+		}
+	}));
 	app.use(passport.initialize());
 	app.use(passport.session());
 
@@ -675,7 +686,7 @@ app.get('/d/:fileName/',
 			response.status(500).send("Internal server error");
 			return;
 		}
-		
+
 		if (row === undefined || row.fileName === undefined) {
 			logError('ERROR: Unknown hash, "' + sha + '"');
 			response.status(404).send("File not found");
@@ -943,7 +954,7 @@ app.get('/c/:collectionID',
 			response.status(500).json({ error: "Database error" });
 			return;
 		}
-		
+
 		if(rows && rows.length > 0) {
 			var files = rows.map(function(row) {
 				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize,timestamp:row.timestamp};
