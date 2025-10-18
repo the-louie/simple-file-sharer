@@ -716,7 +716,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 						return done(err);
 					}
 					if (result) {
-						return done(null, config.authdetails.username);
+				return done(null, config.authdetails.username);
 					} else {
 						return done(null, false, { message: 'Invalid credentials' });
 					}
@@ -894,20 +894,20 @@ app.get('/d/:fileName/',
 	db.get(query, [sha], function(err, row) {
 		if (err) {
 			logError("Database error during download:", err);
-			response.status(500).send("Internal server error");
+			response.status(500).json({ error: "Internal server error" });
 			return;
 		}
 
 		if (row === undefined || row.fileName === undefined) {
 			logError('ERROR: Unknown hash, "' + sha + '"');
-			response.status(404).send("File not found");
+			response.status(404).json({ error: "File not found" });
 			return false;
 		}
 
 		var fileName = currentPath + config.upload_dir.replace(/^\./,'')+'/'+sha;
 		if (!fs.existsSync(fileName)) {
 			logError('ERROR: No such file "' + fileName + '"');
-			response.status(404).send("File not found");
+			response.status(404).json({ error: "File not found" });
 			return false;
 		}
 
@@ -1224,8 +1224,8 @@ app.post('/merge/',
 			fileList.forEach(function(file) {
 				fs.unlink(file, function (err) {
 									if (err) logError("Error deleting chunk file:", err);
-								});
-							});
+				});
+			});
 
 							// Audit successful upload
 							audit('UPLOAD_SUCCESS', remoteAddress, null, {
@@ -1236,8 +1236,8 @@ app.post('/merge/',
 							}, 'SUCCESS');
 
 							response.writeHead(200, {'Content-Type': 'application/json'});
-							response.write(JSON.stringify({'fileName':fileName}));
-							response.end();
+		response.write(JSON.stringify({'fileName':fileName}));
+		response.end();
 						});
 					});
 				});
