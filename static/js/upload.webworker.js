@@ -151,6 +151,25 @@ function uploadChunk (chunk, chunkIndex) {
                 self.chunkList[chunkIndex] = 3;
                 // Reset retry count on success
                 self.chunkRetries[chunkIndex] = 0;
+                
+                // Save progress to localStorage for resumable uploads
+                try {
+                    var progressKey = 'upload_progress_' + self.uuid;
+                    var progressData = {
+                        uuid: self.uuid,
+                        fileName: self.fileName,
+                        fileSize: self.blob.size,
+                        chunkCount: self.chunkCount,
+                        completedChunks: self.chunkList.map(function(status, idx) {
+                            return status === 3 ? idx : -1;
+                        }).filter(function(idx) { return idx !== -1; }),
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(progressKey, JSON.stringify(progressData));
+                } catch (storageErr) {
+                    // Non-critical - just log if localStorage fails
+                    console.warn("Failed to save upload progress:", storageErr);
+                }
             } catch (e) {
                 handleFailure("Failed to parse chunk response: " + e);
                 return false;
@@ -275,6 +294,15 @@ function uploadNextChunk() {
                     // report back that upload of file was successful!
                     try {
                         var response = JSON.parse(xhrMerge.responseText);
+                        
+                        // Clear upload progress from localStorage on success
+                        try {
+                            var progressKey = 'upload_progress_' + self.uuid;
+                            localStorage.removeItem(progressKey);
+                        } catch (storageErr) {
+                            console.warn("Failed to clear upload progress:", storageErr);
+                        }
+                        
                         self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:response.fileName});
                     } catch (e) {
                         console.error("Failed to parse merge response:", e);

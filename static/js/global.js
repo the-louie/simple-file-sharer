@@ -51,6 +51,41 @@ function relativeTime(unixTimestamp) {
 
     document.addEventListener('DOMContentLoaded', function () {
 
+    // Check for incomplete uploads in localStorage and offer resume
+    function checkIncompleteUploads() {
+        try {
+            var incompleteUploads = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('upload_progress_')) {
+                    try {
+                        var data = JSON.parse(localStorage.getItem(key));
+                        // Check if upload is older than 24 hours (stale)
+                        if (Date.now() - data.timestamp > 24 * 60 * 60 * 1000) {
+                            localStorage.removeItem(key); // Remove stale uploads
+                        } else {
+                            incompleteUploads.push(data);
+                        }
+                    } catch (e) {
+                        // Invalid data, remove it
+                        localStorage.removeItem(key);
+                    }
+                }
+            }
+            
+            if (incompleteUploads.length > 0) {
+                console.log("Found", incompleteUploads.length, "incomplete uploads");
+                // Note: Full resume implementation would show UI to let user resume
+                // For now, just log (can be extended in future)
+            }
+        } catch (e) {
+            console.warn("Failed to check incomplete uploads:", e);
+        }
+    }
+    
+    // Check for incomplete uploads on page load
+    checkIncompleteUploads();
+
     // Modern clipboard API function
     var copyToClipboard = function(text, buttonElement) {
         console.log('Attempting to copy:', text);
