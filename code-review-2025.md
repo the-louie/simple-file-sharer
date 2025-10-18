@@ -57,9 +57,13 @@ Branch: `2025-revamp-cont`
    - All quota queries now run in parallel (2-3x faster)
    - Reduced code from 178 lines to 100 lines
 
-8. ⏳ **Issue 1.4: Web Worker Created Per File** - PENDING
+8. ✅ **Issue 1.4: Web Worker Created Per File** - Commit `d46c7f4`
    - Location: `static/js/global.js:466`
    - Solution: Worker pool pattern or single persistent worker
+   - Implemented reusable worker pattern with `getUploadWorker()` helper
+   - Worker kept alive between successful uploads (eliminates creation overhead)
+   - Worker recreated on errors to ensure clean state
+   - Significant performance improvement for multi-file uploads
 
 9. ⏳ **Issue 7.2: No Upload Progress Persistence** - PENDING
    - Location: `static/js/upload.webworker.js:324`
@@ -84,9 +88,9 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 7/10 (70%)
+- Completed: 8/10 (80%)
 - In Progress: 0/10
-- Remaining: 3/10 (All P2 - Medium Priority)
+- Remaining: 2/10 (P2 - Medium Priority)
 
 ## Commits
 
@@ -97,4 +101,5 @@ Branch: `2025-revamp-cont`
 5. `2cc6764` - perf: add database indices for frequently queried columns
 6. `5f6404c` - feat: implement configurable file retention policy with automatic cleanup
 7. `8f8b694` - perf: refactor quota checking to use parallel queries instead of nested callbacks
+8. `d46c7f4` - perf: implement reusable web worker pattern to eliminate creation overhead
 
