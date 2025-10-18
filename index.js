@@ -295,6 +295,7 @@ try {
 		"max_file_size_bytes": 10737418240,
 		"file_retention_days": 30,
 		"audit_log_retention_days": 90,
+		"collection_expiration_days": 7,
 		"session_timeout_hours": 24
 	};
 }
@@ -1148,7 +1149,7 @@ app.get('/c/:collectionID',
 	handleValidationErrors,
 	function (request, response) {
 	var collectionID = request.params.collectionID;
-	var query = "SELECT filename, sha, fileSize, timestamp FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
+	var query = "SELECT fileName, sha, fileSize, timestamp FROM uploaded_files WHERE collectionID = ? ORDER BY fid";
 	db.all(query, [collectionID], function(err, rows) {
 		if (err) {
 			logError("Database error fetching collection:", err);
@@ -1157,6 +1158,19 @@ app.get('/c/:collectionID',
 		}
 
 		if(rows && rows.length > 0) {
+			// Check collection expiration if configured
+			if (config.collection_expiration_days && config.collection_expiration_days > 0) {
+				const now = Math.floor(Date.now() / 1000);
+				const expirationSeconds = config.collection_expiration_days * 24 * 60 * 60;
+				const oldestTimestamp = Math.min.apply(null, rows.map(function(r) { return r.timestamp; }));
+				
+				if (now - oldestTimestamp > expirationSeconds) {
+					log("Collection expired:", collectionID, "oldest file:", oldestTimestamp);
+					response.status(410).json({ error: "Collection has expired" }); // 410 Gone
+					return;
+				}
+			}
+			
 			var files = rows.map(function(row) {
 				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize,timestamp:row.timestamp};
 			});
