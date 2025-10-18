@@ -25,9 +25,12 @@ Branch: `2025-revamp-cont`
 
 ### P1 - High Priority (3 issues)
 
-4. ⏳ **Issue 3.3: No File Checksum Verification** - PENDING
+4. ✅ **Issue 3.3: No File Checksum Verification** - Commit `91241a2`
    - Location: Entire upload flow
    - Solution: Client calculates SHA-256, server verifies on merge
+   - Client calculates SHA-256 using Web Crypto API before upload
+   - Server recalculates SHA-256 after merge and compares
+   - Corrupted uploads rejected with HTTP 422
 
 5. ⏳ **Issue 5.2: Missing Database Indices** - PENDING
    - Location: `index.js:366-386`
@@ -70,13 +73,14 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 3/10 (30%) - All P0 Critical Security Issues Complete!
+- Completed: 4/10 (40%)
 - In Progress: 0/10
-- Remaining: 7/10
+- Remaining: 6/10
 
 ## Commits
 
 1. `b6f8e8c` - perf: replace synchronous file operations with async to prevent event loop blocking
 2. `6c4e1a9` - security: implement session regeneration after login to prevent session fixation attacks
 3. `0a0d911` - security: hash IP addresses for GDPR compliance and privacy protection
+4. `91241a2` - feat: implement SHA-256 checksum verification for file integrity
 
