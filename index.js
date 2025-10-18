@@ -508,14 +508,24 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 				audit('LOGIN_FAILURE', req.ip, req.body.username, { reason: info?.message || 'Invalid credentials' }, 'FAILURE');
 				return res.redirect('/login');
 			}
-			req.logIn(user, function(err) {
-				if (err) {
-					logError("Login session error:", err);
-					audit('LOGIN_ERROR', req.ip, user, { error: err.message }, 'FAILURE');
-					return next(err);
+			
+			// Regenerate session to prevent session fixation attacks
+			req.session.regenerate(function(regenerateErr) {
+				if (regenerateErr) {
+					logError("Session regeneration error:", regenerateErr);
+					audit('LOGIN_ERROR', req.ip, user, { error: 'Session regeneration failed' }, 'FAILURE');
+					return next(regenerateErr);
 				}
-				audit('LOGIN_SUCCESS', req.ip, user, {}, 'SUCCESS');
-				return res.redirect('/');
+				
+				req.logIn(user, function(err) {
+					if (err) {
+						logError("Login session error:", err);
+						audit('LOGIN_ERROR', req.ip, user, { error: err.message }, 'FAILURE');
+						return next(err);
+					}
+					audit('LOGIN_SUCCESS', req.ip, user, {}, 'SUCCESS');
+					return res.redirect('/');
+				});
 			});
 		})(req, res, next);
 	  }
