@@ -500,6 +500,47 @@ if (config.audit_log_retention_days && config.audit_log_retention_days > 0) {
 // Schedule periodic audit log cleanup every hour
 setInterval(cleanupOldAuditLogs, 60 * 60 * 1000);
 
+// Track failed login attempts per username for account lockout
+const failedLogins = {}; // { username: { count: N, lockUntil: timestamp } }
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
+function isAccountLocked(username) {
+	if (!failedLogins[username]) return false;
+	
+	const now = Date.now();
+	if (failedLogins[username].lockUntil && now < failedLogins[username].lockUntil) {
+		return true; // Still locked
+	}
+	
+	// Lock expired, reset counter
+	if (failedLogins[username].lockUntil && now >= failedLogins[username].lockUntil) {
+		delete failedLogins[username];
+	}
+	
+	return false;
+}
+
+function recordFailedLogin(username) {
+	if (!failedLogins[username]) {
+		failedLogins[username] = { count: 0, lockUntil: null };
+	}
+	
+	failedLogins[username].count++;
+	
+	if (failedLogins[username].count >= MAX_LOGIN_ATTEMPTS) {
+		failedLogins[username].lockUntil = Date.now() + LOCKOUT_DURATION_MS;
+		log("Account locked due to failed login attempts:", username);
+		return true; // Now locked
+	}
+	
+	return false; // Not locked yet
+}
+
+function resetFailedLogins(username) {
+	delete failedLogins[username];
+}
+
 // Rate limiting configuration
 const loginLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
@@ -556,17 +597,33 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	  body('password').notEmpty().withMessage('Password is required'),
 	  handleValidationErrors,
 	  function(req, res, next) {
+		const username = req.body.username;
+		
+		// Check if account is locked
+		if (isAccountLocked(username)) {
+			audit('LOGIN_LOCKED', req.ip, username, { reason: 'Account temporarily locked' }, 'FAILURE');
+			return res.status(429).send('Account temporarily locked due to too many failed attempts. Please try again later.');
+		}
+		
 		passport.authenticate('local', function(err, user, info) {
 			if (err) {
 				logError("Login error:", err);
-				audit('LOGIN_ERROR', req.ip, req.body.username, { error: err.message }, 'FAILURE');
+				audit('LOGIN_ERROR', req.ip, username, { error: err.message }, 'FAILURE');
 				return next(err);
 			}
 			if (!user) {
-				audit('LOGIN_FAILURE', req.ip, req.body.username, { reason: info?.message || 'Invalid credentials' }, 'FAILURE');
+				// Record failed login and check if should lock account
+				const nowLocked = recordFailedLogin(username);
+				audit('LOGIN_FAILURE', req.ip, username, { 
+					reason: info?.message || 'Invalid credentials',
+					locked: nowLocked
+				}, 'FAILURE');
 				return res.redirect('/login');
 			}
-
+			
+			// Successful login - reset failed login counter
+			resetFailedLogins(username);
+			
 			// Regenerate session to prevent session fixation attacks
 			req.session.regenerate(function(regenerateErr) {
 				if (regenerateErr) {
@@ -574,7 +631,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 					audit('LOGIN_ERROR', req.ip, user, { error: 'Session regeneration failed' }, 'FAILURE');
 					return next(regenerateErr);
 				}
-
+				
 				req.logIn(user, function(err) {
 					if (err) {
 						logError("Login session error:", err);
