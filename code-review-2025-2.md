@@ -61,17 +61,19 @@ Latest Commit: `57200e9`
 **Status**: Fixed in commit `d46c7f4`
 **Impact**: Eliminated worker creation overhead
 
-### Issue 1.5: No Response Streaming for Large Files ⏳ PENDING
+### Issue 1.5: No Response Streaming for Large Files ⏭️ SKIPPED
 **Location**: `index.js:761-789`
 **Solution**: Use `fs.createReadStream().pipe(response)`
+**Reason**: Express sendFile() already uses streaming internally - no benefit to refactor
 
 ---
 
 ## 2. User Authentication & Authorization
 
-### Issue 2.1: No Multi-User Support ⏳ PENDING
+### Issue 2.1: No Multi-User Support ✅ COMPLETE
+**Status**: Fixed in commit `7b45060`
 **Location**: `index.js:471-573`
-**Solution**: Implement user table with registration
+**Solution**: Created users table, database-backed authentication with backward compatibility
 
 ### Issue 2.2: Session Storage in Memory ⏭️ SKIPPED
 **Reason**: Requires Redis dependency
@@ -79,13 +81,15 @@ Latest Commit: `57200e9`
 ### Issue 2.3: No Password Reset Mechanism ⏭️ SKIPPED
 **Reason**: Requires email service
 
-### Issue 2.4: No Account Lockout After Failed Logins ⏳ PENDING
+### Issue 2.4: No Account Lockout After Failed Logins ✅ COMPLETE
+**Status**: Fixed in commit `cfe611d`
 **Location**: `index.js:494-521`
-**Solution**: Track failed attempts per username
+**Solution**: Implemented in-memory tracking of failed attempts, 5 attempts = 15min lockout
 
-### Issue 2.5: Plaintext Password Support Still Exists ⏳ PENDING
+### Issue 2.5: Plaintext Password Support Still Exists ✅ COMPLETE
+**Status**: Fixed in commit `225aa8b`
 **Location**: `index.js:549-561`
-**Solution**: Remove plaintext support, force bcrypt
+**Solution**: Removed plaintext password support completely, only bcrypt hashes accepted
 
 ---
 
@@ -101,13 +105,15 @@ Latest Commit: `57200e9`
 **Status**: Fixed in commit `91241a2`
 **Impact**: Corrupted uploads now detected and rejected
 
-### Issue 3.4: Chunk Files Not Encrypted at Rest ⏳ PENDING
+### Issue 3.4: Chunk Files Not Encrypted at Rest ✅ COMPLETE
+**Status**: Fixed in commit `7546d96`
 **Location**: `index.js:702`
-**Solution**: Implement crypto.createCipheriv encryption
+**Solution**: Implemented AES-256-GCM encryption with PBKDF2 key derivation
 
-### Issue 3.5: No Filename Collision Detection Before Upload ⏳ PENDING
+### Issue 3.5: No Filename Collision Detection Before Upload ✅ COMPLETE
+**Status**: Fixed in commit `bbafa63`
 **Location**: `index.js:588-609`
-**Solution**: Already has UNIQUE constraint, could improve retry logic
+**Solution**: Added retry limits, better logging, increased initial length from 2 to 4 chars
 
 ---
 
@@ -120,17 +126,20 @@ Latest Commit: `57200e9`
 ### Issue 4.2: Session Cookie Accessible in HTTP ⏭️ SKIPPED
 **Reason**: Development flexibility needed
 
-### Issue 4.3: No CSRF Token Implementation ⏳ PENDING
+### Issue 4.3: No CSRF Token Implementation ⏭️ SKIPPED
 **Location**: `index.js:61-62`
 **Solution**: Implement csurf middleware
+**Reason**: sameSite:'lax' cookies already provide CSRF protection for POST requests
 
-### Issue 4.4: Session Timeout Not Configurable ⏳ PENDING
+### Issue 4.4: Session Timeout Not Configurable ✅ COMPLETE
+**Status**: Fixed in commit `79cacf1`
 **Location**: `index.js:481`
-**Solution**: Move maxAge to config file
+**Solution**: Added session_timeout_hours to config with default 24 hours
 
-### Issue 4.5: No Concurrent Session Limit ⏳ PENDING
+### Issue 4.5: No Concurrent Session Limit ✅ COMPLETE
+**Status**: Fixed in commit `f365a24`
 **Location**: Entire auth system
-**Solution**: Track active sessions per user
+**Solution**: In-memory tracking of active sessions, max 3 concurrent sessions per user
 
 ---
 
@@ -161,17 +170,19 @@ Latest Commit: `57200e9`
 **Status**: Fixed in commit `0a0d911`
 **Impact**: GDPR compliant
 
-### Issue 6.2: Audit Logs Never Expire ⏳ PENDING
+### Issue 6.2: Audit Logs Never Expire ✅ COMPLETE
+**Status**: Fixed in commit `fd4ee2a`
 **Location**: `index.js:246-255`
-**Solution**: Implement log rotation
+**Solution**: Implemented audit_log_retention_days config with automatic cleanup (default: 90 days)
 
 ### Issue 6.3: No Data Retention Policy ✅ COMPLETE
 **Status**: Fixed in commit `5f6404c`
 **Impact**: Automatic cleanup of old files
 
-### Issue 6.4: Sensitive Data in Logs ⏳ PENDING
+### Issue 6.4: Sensitive Data in Logs ✅ COMPLETE
+**Status**: Fixed in commit `7605665`
 **Location**: `index.js:810`
-**Solution**: Sanitize log output
+**Solution**: Replaced filename logging with sha hashes only, removed sensitive data from logs
 
 ### Issue 6.5: No SSL/TLS Certificate Validation ⏭️ SKIPPED
 **Reason**: Deployment-specific
@@ -180,9 +191,10 @@ Latest Commit: `57200e9`
 
 ## 7. Error Handling & User Experience
 
-### Issue 7.1: Generic Error Messages Leak Information ⏳ PENDING
+### Issue 7.1: Generic Error Messages Leak Information ✅ COMPLETE
+**Status**: Fixed in commit `cea2a58`
 **Location**: `index.js:732-735`
-**Solution**: Standardized error responses
+**Solution**: Standardized all error responses to JSON format for consistency
 
 ### Issue 7.2: No Upload Progress Persistence ✅ COMPLETE
 **Status**: Fixed in commit `21040b4`
@@ -192,13 +204,15 @@ Latest Commit: `57200e9`
 **Status**: Fixed in commit `3b158ba`
 **Impact**: Zero production overhead
 
-### Issue 7.4: No File Preview Before Upload ⏳ PENDING
+### Issue 7.4: No File Preview Before Upload ⏭️ SKIPPED
 **Location**: `static/js/global.js`
 **Solution**: Show file list before upload
+**Reason**: Requires major UX changes with confirmation dialogs - deferred for future iteration
 
-### Issue 7.5: Collection URLs Never Expire ⏳ PENDING
+### Issue 7.5: Collection URLs Never Expire ✅ COMPLETE
+**Status**: Fixed in commit `902da80`
 **Location**: `index.js:1048-1072`
-**Solution**: Optional expiration for collections
+**Solution**: Implemented collection_expiration_days config, returns HTTP 410 for expired collections
 
 ---
 
