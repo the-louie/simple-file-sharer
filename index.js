@@ -520,6 +520,10 @@ const failedLogins = {}; // { username: { count: N, lockUntil: timestamp } }
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
+// Track active sessions per user for concurrent session limits
+const activeSessions = {}; // { username: [sessionID1, sessionID2, ...] }
+const MAX_CONCURRENT_SESSIONS = 3;
+
 function isAccountLocked(username) {
 	if (!failedLogins[username]) return false;
 	
@@ -554,6 +558,32 @@ function recordFailedLogin(username) {
 
 function resetFailedLogins(username) {
 	delete failedLogins[username];
+}
+
+function addActiveSession(username, sessionID) {
+	if (!activeSessions[username]) {
+		activeSessions[username] = [];
+	}
+	
+	// Add new session
+	activeSessions[username].push(sessionID);
+	
+	// If exceeded max concurrent sessions, remove oldest session
+	if (activeSessions[username].length > MAX_CONCURRENT_SESSIONS) {
+		const oldestSessionID = activeSessions[username].shift();
+		log("Removing oldest session for", username, "- max concurrent sessions reached");
+	}
+}
+
+function removeActiveSession(username, sessionID) {
+	if (activeSessions[username]) {
+		activeSessions[username] = activeSessions[username].filter(function(sid) {
+			return sid !== sessionID;
+		});
+		if (activeSessions[username].length === 0) {
+			delete activeSessions[username];
+		}
+	}
 }
 
 // Rate limiting configuration
@@ -653,6 +683,10 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 						audit('LOGIN_ERROR', req.ip, user, { error: err.message }, 'FAILURE');
 						return next(err);
 					}
+					
+					// Track session for concurrent session limits
+					addActiveSession(user, req.sessionID);
+					
 					audit('LOGIN_SUCCESS', req.ip, user, {}, 'SUCCESS');
 					return res.redirect('/');
 				});
@@ -663,6 +697,20 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 
 	passport.serializeUser(function(user, done) { done(null, user); });
 	passport.deserializeUser(function(user, done) { done(null, user); });
+	
+	// Handle session destruction for concurrent session tracking
+	app.use(function(req, res, next) {
+		if (req.session) {
+			var originalDestroy = req.session.destroy.bind(req.session);
+			req.session.destroy = function(callback) {
+				if (req.user) {
+					removeActiveSession(req.user, req.sessionID);
+				}
+				originalDestroy(callback);
+			};
+		}
+		next();
+	});
 	passport.use(new LocalStrategy(function(username, password, done) {
 		// Check database users first (multi-user support)
 		db.get("SELECT username, password_hash, is_admin FROM users WHERE username = ?", [username], function(err, dbUser) {
