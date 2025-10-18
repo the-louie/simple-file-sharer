@@ -293,7 +293,8 @@ try {
 		"per_ip_daily_bytes": 1073741824,
 		"per_ip_daily_files": 100,
 		"max_file_size_bytes": 10737418240,
-		"file_retention_days": 30
+		"file_retention_days": 30,
+		"session_timeout_hours": 24
 	};
 }
 
@@ -502,7 +503,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 			httpOnly: true, // Prevent XSS access to cookies
 			secure: process.env.NODE_ENV === 'production', // HTTPS only in production
 			sameSite: 'lax', // CSRF protection while allowing navigation
-			maxAge: 24 * 60 * 60 * 1000 // 24 hours
+			maxAge: (config.session_timeout_hours || 24) * 60 * 60 * 1000 // Configurable timeout
 		}
 	}));
 	app.use(passport.initialize());
