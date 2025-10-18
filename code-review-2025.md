@@ -39,9 +39,13 @@ Branch: `2025-revamp-cont`
    - Created idx_uploaded_files_remote_ip_timestamp composite for quota queries
    - Created idx_uploaded_chunks_uuid for merge operations
 
-6. ⏳ **Issue 6.3: No Data Retention Policy** - PENDING
+6. ✅ **Issue 6.3: No Data Retention Policy** - Commit `5f6404c`
    - Location: Entire codebase
    - Solution: Configurable TTL for files, automatic cleanup
+   - Added `file_retention_days` config option (default: 30 days)
+   - Created `cleanupOldFiles()` function to delete old files
+   - Scheduled hourly cleanup with startup execution
+   - Set to 0 to disable retention (keep files forever)
 
 ### P2 - Medium Priority (4 issues)
 
@@ -76,9 +80,9 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 5/10 (50%)
+- Completed: 6/10 (60%) - All P0 & P1 Issues Complete!
 - In Progress: 0/10
-- Remaining: 5/10
+- Remaining: 4/10 (All P2 - Medium Priority)
 
 ## Commits
 
@@ -87,4 +91,5 @@ Branch: `2025-revamp-cont`
 3. `0a0d911` - security: hash IP addresses for GDPR compliance and privacy protection
 4. `91241a2` - feat: implement SHA-256 checksum verification for file integrity
 5. `2cc6764` - perf: add database indices for frequently queried columns
+6. `5f6404c` - feat: implement configurable file retention policy with automatic cleanup
 
