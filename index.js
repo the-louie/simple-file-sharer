@@ -229,7 +229,7 @@ function hashIP(ip) {
 	if (!ip || typeof ip !== 'string') {
 		return 'unknown';
 	}
-
+	
 	// Use SHA-256 with server secret as salt for one-way hashing
 	// Same IP always produces same hash (for quota tracking)
 	// Cannot reverse-engineer original IP from hash
@@ -238,6 +238,46 @@ function hashIP(ip) {
 		.update(ip)
 		.update(config.secret || process.env.SESSION_SECRET)
 		.digest('hex');
+}
+
+// Derive encryption key from SESSION_SECRET for chunk encryption
+function getEncryptionKey() {
+	// Use PBKDF2 to derive a proper 256-bit key from the secret
+	return crypto.pbkdf2Sync(
+		config.secret || process.env.SESSION_SECRET,
+		'simple-file-sharer-salt', // Fixed salt for key derivation
+		100000, // Iterations
+		32, // 256 bits
+		'sha256'
+	);
+}
+
+// Encrypt chunk data before writing to disk (AES-256-GCM)
+function encryptChunk(data) {
+	const key = getEncryptionKey();
+	const iv = crypto.randomBytes(16); // 128-bit IV for GCM
+	const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+	
+	const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+	const authTag = cipher.getAuthTag();
+	
+	// Return: IV (16 bytes) + authTag (16 bytes) + encrypted data
+	return Buffer.concat([iv, authTag, encrypted]);
+}
+
+// Decrypt chunk data when reading from disk (AES-256-GCM)
+function decryptChunk(encryptedData) {
+	const key = getEncryptionKey();
+	
+	// Extract: IV (16 bytes) + authTag (16 bytes) + encrypted data
+	const iv = encryptedData.slice(0, 16);
+	const authTag = encryptedData.slice(16, 32);
+	const encrypted = encryptedData.slice(32);
+	
+	const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+	decipher.setAuthTag(authTag);
+	
+	return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
 
 var config;
@@ -925,9 +965,12 @@ app.post('/upload/',
 			}
 		stmt.finalize();
 
-		// save chunk to file
+		// Encrypt chunk before saving to disk (at-rest encryption)
+			var encryptedChunk = encryptChunk(fileBuffer);
+			
+			// save encrypted chunk to file
 			var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
-		chunkFile.write(fileBuffer);
+			chunkFile.write(encryptedChunk);
 			chunkFile.end(function(err) {
 				if (err) {
 					logError("File write error:", err);
@@ -1091,9 +1134,11 @@ app.post('/merge/',
 			var chunkPath = config.upload_dir+'/pending/'+chunkFileName;
 
 			try {
-				var chunkData = await fsPromises.readFile(chunkPath);
-			result_file.write(chunkData);
-			fileSize += chunkData.length;
+				var encryptedChunkData = await fsPromises.readFile(chunkPath);
+				// Decrypt chunk data before merging
+				var chunkData = decryptChunk(encryptedChunkData);
+				result_file.write(chunkData);
+				fileSize += chunkData.length;
 				fileList.push(chunkPath);
 			} catch (fileErr) {
 				logError("Error reading chunk file:", fileErr);
