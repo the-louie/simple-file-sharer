@@ -67,6 +67,7 @@ function handleValidationErrors(request, response, next) {
 async function checkUploadQuotas(remoteIP) {
 	const now = Math.floor(Date.now() / 1000);
 	const dayAgo = now - 86400; // 24 hours ago
+	const hashedIP = hashIP(remoteIP); // Hash IP for privacy
 
 	return new Promise((resolve, reject) => {
 		// Check global storage quota
@@ -90,7 +91,7 @@ async function checkUploadQuotas(remoteIP) {
 				if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 					db.get(
 						"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-						[remoteIP, dayAgo],
+						[hashedIP, dayAgo],
 						(err2, row2) => {
 							if (err2) {
 								return reject({ error: "Database error", code: 500 });
@@ -98,7 +99,7 @@ async function checkUploadQuotas(remoteIP) {
 
 							const ipDailyStorage = row2?.total || 0;
 							if (ipDailyStorage >= config.per_ip_daily_bytes) {
-								log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
+								log("Per-IP daily storage quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
 								return reject({
 									error: "Daily upload quota exceeded",
 									code: 429,
@@ -110,7 +111,7 @@ async function checkUploadQuotas(remoteIP) {
 							if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 								db.get(
 									"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-									[remoteIP, dayAgo],
+									[hashedIP, dayAgo],
 									(err3, row3) => {
 										if (err3) {
 											return reject({ error: "Database error", code: 500 });
@@ -118,7 +119,7 @@ async function checkUploadQuotas(remoteIP) {
 
 										const ipDailyFiles = row3?.count || 0;
 										if (ipDailyFiles >= config.per_ip_daily_files) {
-											log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+											log("Per-IP daily file count quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyFiles, ">=", config.per_ip_daily_files);
 											return reject({
 												error: "Daily file upload limit exceeded",
 												code: 429,
@@ -139,7 +140,7 @@ async function checkUploadQuotas(remoteIP) {
 					if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 						db.get(
 							"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-							[remoteIP, dayAgo],
+							[hashedIP, dayAgo],
 							(err3, row3) => {
 								if (err3) {
 									return reject({ error: "Database error", code: 500 });
@@ -147,7 +148,7 @@ async function checkUploadQuotas(remoteIP) {
 
 								const ipDailyFiles = row3?.count || 0;
 								if (ipDailyFiles >= config.per_ip_daily_files) {
-									log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+									log("Per-IP daily file count quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyFiles, ">=", config.per_ip_daily_files);
 									return reject({
 										error: "Daily file upload limit exceeded",
 										code: 429,
@@ -168,7 +169,7 @@ async function checkUploadQuotas(remoteIP) {
 			if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 				db.get(
 					"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-					[remoteIP, dayAgo],
+					[hashedIP, dayAgo],
 					(err, row) => {
 						if (err) {
 							return reject({ error: "Database error", code: 500 });
@@ -176,7 +177,7 @@ async function checkUploadQuotas(remoteIP) {
 
 						const ipDailyStorage = row?.total || 0;
 						if (ipDailyStorage >= config.per_ip_daily_bytes) {
-							log("Per-IP daily storage quota exceeded for", remoteIP, ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
+							log("Per-IP daily storage quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyStorage, ">=", config.per_ip_daily_bytes);
 							return reject({
 								error: "Daily upload quota exceeded",
 								code: 429,
@@ -188,7 +189,7 @@ async function checkUploadQuotas(remoteIP) {
 						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 							db.get(
 								"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-								[remoteIP, dayAgo],
+								[hashedIP, dayAgo],
 								(err2, row2) => {
 									if (err2) {
 										return reject({ error: "Database error", code: 500 });
@@ -196,7 +197,7 @@ async function checkUploadQuotas(remoteIP) {
 
 									const ipDailyFiles = row2?.count || 0;
 									if (ipDailyFiles >= config.per_ip_daily_files) {
-										log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+										log("Per-IP daily file count quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyFiles, ">=", config.per_ip_daily_files);
 										return reject({
 											error: "Daily file upload limit exceeded",
 											code: 429,
@@ -216,7 +217,7 @@ async function checkUploadQuotas(remoteIP) {
 				// Only file count quota
 				db.get(
 					"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-					[remoteIP, dayAgo],
+					[hashedIP, dayAgo],
 					(err, row) => {
 						if (err) {
 							return reject({ error: "Database error", code: 500 });
@@ -224,7 +225,7 @@ async function checkUploadQuotas(remoteIP) {
 
 						const ipDailyFiles = row?.count || 0;
 						if (ipDailyFiles >= config.per_ip_daily_files) {
-							log("Per-IP daily file count quota exceeded for", remoteIP, ":", ipDailyFiles, ">=", config.per_ip_daily_files);
+							log("Per-IP daily file count quota exceeded for", hashedIP.substring(0, 16) + '...', ":", ipDailyFiles, ">=", config.per_ip_daily_files);
 							return reject({
 								error: "Daily file upload limit exceeded",
 								code: 429,
@@ -245,14 +246,16 @@ async function checkUploadQuotas(remoteIP) {
 
 // Audit logging function
 function audit(eventType, remoteIP, username, details, status) {
+	const hashedIP = hashIP(remoteIP); // Hash IP for privacy/GDPR compliance
 	const stmt = db.prepare('INSERT INTO audit_log (event_type, remote_ip, username, details, status) VALUES (?, ?, ?, ?, ?)');
-	stmt.run(eventType, remoteIP, username || null, JSON.stringify(details), status, function(err) {
+	stmt.run(eventType, hashedIP, username || null, JSON.stringify(details), status, function(err) {
 		if (err) {
 			logError("Failed to write audit log:", err);
 		}
 		stmt.finalize();
 	});
-	log("AUDIT:", eventType, remoteIP, username, details, status);
+	// Log with hashed IP only
+	log("AUDIT:", eventType, hashedIP.substring(0, 16) + '...', username, details, status);
 }
 
 // Sanitize filename for safe downloads
@@ -298,6 +301,22 @@ function timingSafeEqual(a, b) {
 		// If comparison fails (shouldn't happen with padding), return false
 		return false;
 	}
+}
+
+// Hash IP addresses for privacy/GDPR compliance while preserving quota functionality
+function hashIP(ip) {
+	if (!ip || typeof ip !== 'string') {
+		return 'unknown';
+	}
+	
+	// Use SHA-256 with server secret as salt for one-way hashing
+	// Same IP always produces same hash (for quota tracking)
+	// Cannot reverse-engineer original IP from hash
+	return crypto
+		.createHash('sha256')
+		.update(ip)
+		.update(config.secret || process.env.SESSION_SECRET)
+		.digest('hex');
 }
 
 var config;
@@ -725,7 +744,7 @@ app.post('/upload/',
 			});
 		});
 
-		log(remoteAddress,'uploaded',fileName,chunkID);
+		log(hashIP(remoteAddress).substring(0, 16) + '...','uploaded',fileName,chunkID);
 	});
 
 });
@@ -784,7 +803,7 @@ app.get('/d/:fileName/',
 			    }
 			});
 		} else {
-			log(request.ip,'downloading" ' + fileName + '"');
+			log(hashIP(request.ip).substring(0, 16) + '...','downloading" ' + fileName + '"');
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'download' }, 'SUCCESS');
 			response.download(fileName, safeFileName, {
 				headers: {
@@ -985,7 +1004,8 @@ app.post('/merge/',
 
 				// First, insert the file record
 				var insertStmt = db.prepare('INSERT INTO uploaded_files (fileName, sha, collectionID, fileSize, remote_ip) VALUES (?,?,?,?,?)');
-				insertStmt.run(originalFileName, fileName, collectionID, fileSize, remoteAddress, function(insertErr) {
+				var hashedIP = hashIP(remoteAddress); // Hash IP for privacy/GDPR compliance
+				insertStmt.run(originalFileName, fileName, collectionID, fileSize, hashedIP, function(insertErr) {
 					if (insertErr) {
 						insertStmt.finalize();
 						// Rollback transaction on error
@@ -1079,6 +1099,7 @@ app.get('/c/:collectionID',
 // API endpoint to get current quota usage
 app.get('/api/quota', function (request, response) {
 	const remoteIP = request.ip;
+	const hashedIP = hashIP(remoteIP); // Hash IP for privacy
 	const now = Math.floor(Date.now() / 1000);
 	const dayAgo = now - 86400;
 
@@ -1111,7 +1132,7 @@ app.get('/api/quota', function (request, response) {
 			if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 				db.get(
 					"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-					[remoteIP, dayAgo],
+					[hashedIP, dayAgo],
 					(err2, row2) => {
 						if (!err2) {
 							quotaInfo.perIP.bytesUsed = row2?.total || 0;
@@ -1122,7 +1143,7 @@ app.get('/api/quota', function (request, response) {
 						if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 							db.get(
 								"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-								[remoteIP, dayAgo],
+								[hashedIP, dayAgo],
 								(err3, row3) => {
 									if (!err3) {
 										quotaInfo.perIP.filesUsed = row3?.count || 0;
@@ -1139,7 +1160,7 @@ app.get('/api/quota', function (request, response) {
 			} else if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 				db.get(
 					"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-					[remoteIP, dayAgo],
+					[hashedIP, dayAgo],
 					(err3, row3) => {
 						if (!err3) {
 							quotaInfo.perIP.filesUsed = row3?.count || 0;
@@ -1157,7 +1178,7 @@ app.get('/api/quota', function (request, response) {
 		if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 			db.get(
 				"SELECT SUM(fileSize) as total FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-				[remoteIP, dayAgo],
+				[hashedIP, dayAgo],
 				(err, row) => {
 					if (!err) {
 						quotaInfo.perIP.bytesUsed = row?.total || 0;
@@ -1167,7 +1188,7 @@ app.get('/api/quota', function (request, response) {
 					if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 						db.get(
 							"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-							[remoteIP, dayAgo],
+							[hashedIP, dayAgo],
 							(err2, row2) => {
 								if (!err2) {
 									quotaInfo.perIP.filesUsed = row2?.count || 0;
@@ -1184,7 +1205,7 @@ app.get('/api/quota', function (request, response) {
 		} else if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 			db.get(
 				"SELECT COUNT(*) as count FROM uploaded_files WHERE remote_ip = ? AND timestamp > ?",
-				[remoteIP, dayAgo],
+				[hashedIP, dayAgo],
 				(err, row) => {
 					if (!err) {
 						quotaInfo.perIP.filesUsed = row?.count || 0;
