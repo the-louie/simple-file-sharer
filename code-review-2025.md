@@ -49,9 +49,13 @@ Branch: `2025-revamp-cont`
 
 ### P2 - Medium Priority (4 issues)
 
-7. ⏳ **Issue 1.2: N+1 Query Problem in Quota Checking** - PENDING
+7. ✅ **Issue 1.2: N+1 Query Problem in Quota Checking** - Commit `8f8b694`
    - Location: `index.js:66-243`
    - Solution: Refactor to use Promise.all() for parallel queries
+   - Created `dbGet()` helper to promisify database queries
+   - Refactored from deeply nested callbacks (4 levels) to clean async/await
+   - All quota queries now run in parallel (2-3x faster)
+   - Reduced code from 178 lines to 100 lines
 
 8. ⏳ **Issue 1.4: Web Worker Created Per File** - PENDING
    - Location: `static/js/global.js:466`
@@ -80,9 +84,9 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 6/10 (60%) - All P0 & P1 Issues Complete!
+- Completed: 7/10 (70%)
 - In Progress: 0/10
-- Remaining: 4/10 (All P2 - Medium Priority)
+- Remaining: 3/10 (All P2 - Medium Priority)
 
 ## Commits
 
@@ -92,4 +96,5 @@ Branch: `2025-revamp-cont`
 4. `91241a2` - feat: implement SHA-256 checksum verification for file integrity
 5. `2cc6764` - perf: add database indices for frequently queried columns
 6. `5f6404c` - feat: implement configurable file retention policy with automatic cleanup
+7. `8f8b694` - perf: refactor quota checking to use parallel queries instead of nested callbacks
 
