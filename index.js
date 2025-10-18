@@ -797,11 +797,18 @@ app.use(function(request, response, next) {
 
 app.use(express.static(currentPath + '/static/'));
 
-const safeRandomId = async (length) => new Promise((resolve, _reject) => {
+const safeRandomId = async (length, retryCount) => new Promise((resolve, _reject) => {
 	if (length === undefined)
-		length = 2;
+		length = 4; // Start with 4 chars for better distribution (64^4 = 16M combinations)
 	else if (length > 64)
-		return resolve(false);
+		return resolve(false); // Max length exceeded
+	
+	if (retryCount === undefined)
+		retryCount = 0;
+	else if (retryCount > 10) {
+		logError("Too many ID generation retries - possible collision attack or database issue");
+		return resolve(false); // Max retries exceeded
+	}
 
 	var id = crypto
 		.randomBytes(length)
@@ -811,12 +818,20 @@ const safeRandomId = async (length) => new Promise((resolve, _reject) => {
 		.join('');
 
 	db.get("SELECT count(*) c FROM uploaded_files WHERE sha=?", [id], (err, dbres) => {
-		if (err)
+		if (err) {
+			logError("Database error checking ID collision:", err);
 			return resolve(false);
-		if (dbres.c === 0)
+		}
+		if (dbres.c === 0) {
+			if (retryCount > 0) {
+				log("ID collision resolved after", retryCount, "retries, length:", length);
+			}
 			return resolve(id);
-		else
-			safeRandomId(length + 1).then(resolve);
+		} else {
+			// Collision detected - retry with longer ID
+			log("ID collision detected for", id, "- retrying with longer length");
+			safeRandomId(length + 1, retryCount + 1).then(resolve);
+		}
 	});
 })
 
