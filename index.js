@@ -388,12 +388,32 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOI
 		logError("Failed to create uploaded_files table:", err);
 		process.exit(1);
 	}
+	
+	// Create indices for frequently queried columns
+	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_files_collectionID ON uploaded_files(collectionID)", function(idxErr) {
+		if (idxErr) {
+			logError("Failed to create collectionID index:", idxErr);
+		}
+	});
+	
+	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_files_remote_ip_timestamp ON uploaded_files(remote_ip, timestamp)", function(idxErr2) {
+		if (idxErr2) {
+			logError("Failed to create remote_ip+timestamp index:", idxErr2);
+		}
+	});
 });
 db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, filename TEXT, chunk_id INT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", function(err) {
 	if (err) {
 		logError("Failed to create uploaded_chunks table:", err);
 		process.exit(1);
 	}
+	
+	// Create index on uuid for faster chunk lookups during merge
+	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_chunks_uuid ON uploaded_chunks(uuid)", function(idxErr) {
+		if (idxErr) {
+			logError("Failed to create uuid index:", idxErr);
+		}
+	});
 
 	// Run cleanup on startup
 	cleanupOrphanedChunks();
