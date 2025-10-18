@@ -1,7 +1,7 @@
 // Debug mode: disabled by default (production), enable via ?debug=1 or localStorage
 var debug = (function() {
     try {
-        return (window.location.search.indexOf('debug=1') !== -1) || 
+        return (window.location.search.indexOf('debug=1') !== -1) ||
                (localStorage.getItem('debug') === 'true');
     } catch (e) {
         return false;
@@ -87,7 +87,7 @@ function relativeTime(unixTimestamp) {
                     }
                 }
             }
-            
+
             if (incompleteUploads.length > 0) {
                 debugLog("Found", incompleteUploads.length, "incomplete uploads");
                 // Note: Full resume implementation would show UI to let user resume
@@ -97,7 +97,7 @@ function relativeTime(unixTimestamp) {
             debugLog("Failed to check incomplete uploads:", e);
         }
     }
-    
+
     // Check for incomplete uploads on page load
     checkIncompleteUploads();
 
@@ -268,7 +268,7 @@ function relativeTime(unixTimestamp) {
         dropzone,
         uploadsInProgress = false,
         uploadWorker = null; // Reusable worker for all uploads
-    
+
     // Function to get or create upload worker
     function getUploadWorker() {
         if (!uploadWorker) {
@@ -527,14 +527,14 @@ function relativeTime(unixTimestamp) {
             worker.postMessage(msg);
             var dropzoneLabel = document.getElementById("dropzoneLabel");
             if (dropzoneLabel) dropzoneLabel.style.display = 'none';
-            
+
             worker.onmessage = function(e) {
                 var fileElement = document.querySelector(".file." + currentFileID);
                 if (!fileElement) {
                     // Don't terminate - keep worker for next file
                     return;
                 }
-                
+
                 if (e.data.action == 'SUCCESS') {
                     if(allFiles.length > 1) {
                         var collection = document.querySelector(".collection");
@@ -568,13 +568,13 @@ function relativeTime(unixTimestamp) {
 
                     allFiles[currentFileID] = 1;
                     currentFileID++;
-                    
+
                     // On error, terminate and recreate worker for next file to ensure clean state
                     if (uploadWorker) {
                         uploadWorker.terminate();
                         uploadWorker = null;
                     }
-                    
+
                     handleNextFile();
                     return false;
                 } else if (e.data.action == 'MERGING') {

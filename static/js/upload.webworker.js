@@ -159,7 +159,7 @@ function uploadChunk (chunk, chunkIndex) {
                 self.chunkList[chunkIndex] = 3;
                 // Reset retry count on success
                 self.chunkRetries[chunkIndex] = 0;
-                
+
                 // Save progress to localStorage for resumable uploads
                 try {
                     var progressKey = 'upload_progress_' + self.uuid;
@@ -249,9 +249,9 @@ function uploadNextChunk() {
         });
 
         var xhrMerge = new XMLHttpRequest();
-        var mergeUrl = "/merge?name=" + encodeURIComponent(self.fileName) + 
-                       "&chunkCount=" + self.chunkCount + 
-                       "&uuid=" + self.uuid + 
+        var mergeUrl = "/merge?name=" + encodeURIComponent(self.fileName) +
+                       "&chunkCount=" + self.chunkCount +
+                       "&uuid=" + self.uuid +
                        "&collectionID=" + self.collectionID +
                        "&checksum=" + self.fileChecksum;
         xhrMerge.open("POST", mergeUrl);
@@ -302,7 +302,7 @@ function uploadNextChunk() {
                     // report back that upload of file was successful!
                     try {
                         var response = JSON.parse(xhrMerge.responseText);
-                        
+
                         // Clear upload progress from localStorage on success
                         try {
                             var progressKey = 'upload_progress_' + self.uuid;
@@ -310,7 +310,7 @@ function uploadNextChunk() {
                         } catch (storageErr) {
                             console.warn("Failed to clear upload progress:", storageErr);
                         }
-                        
+
                         self.postMessage({action:"SUCCESS", fileID:self.currentFileID, fileName:response.fileName});
                     } catch (e) {
                         console.error("Failed to parse merge response:", e);
@@ -399,7 +399,7 @@ self.onmessage = function(e) {
             return b.toString(16).padStart(2, '0');
         }).join('');
         debugLog("File checksum calculated:", self.fileChecksum);
-        
+
         // Start uploading the first chunk
         uploadNextChunk();
     }).catch(function(err) {

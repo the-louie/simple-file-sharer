@@ -82,14 +82,14 @@ async function checkUploadQuotas(remoteIP) {
 	try {
 		// Build array of queries to run in parallel
 		var queries = [];
-		
+
 		// Global storage quota query
 		if (config.max_storage_bytes && config.max_storage_bytes > 0) {
 			queries.push(dbGet("SELECT SUM(fileSize) as total FROM uploaded_files", []));
 		} else {
 			queries.push(Promise.resolve(null));
 		}
-		
+
 		// Per-IP daily storage quota query
 		if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 			queries.push(dbGet(
@@ -99,7 +99,7 @@ async function checkUploadQuotas(remoteIP) {
 		} else {
 			queries.push(Promise.resolve(null));
 		}
-		
+
 		// Per-IP daily file count quota query
 		if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 			queries.push(dbGet(
@@ -109,10 +109,10 @@ async function checkUploadQuotas(remoteIP) {
 		} else {
 			queries.push(Promise.resolve(null));
 		}
-		
+
 		// Execute all queries in parallel
 		const [globalRow, ipStorageRow, ipFilesRow] = await Promise.all(queries);
-		
+
 		// Check global storage quota
 		if (config.max_storage_bytes && config.max_storage_bytes > 0) {
 			const totalStorage = globalRow?.total || 0;
@@ -125,7 +125,7 @@ async function checkUploadQuotas(remoteIP) {
 				};
 			}
 		}
-		
+
 		// Check per-IP daily storage quota
 		if (config.per_ip_daily_bytes && config.per_ip_daily_bytes > 0) {
 			const ipDailyStorage = ipStorageRow?.total || 0;
@@ -138,7 +138,7 @@ async function checkUploadQuotas(remoteIP) {
 				};
 			}
 		}
-		
+
 		// Check per-IP daily file count quota
 		if (config.per_ip_daily_files && config.per_ip_daily_files > 0) {
 			const ipDailyFiles = ipFilesRow?.count || 0;
@@ -151,9 +151,9 @@ async function checkUploadQuotas(remoteIP) {
 				};
 			}
 		}
-		
+
 		return true;
-		
+
 	} catch (error) {
 		// Re-throw quota errors as-is
 		if (error.code === 507 || error.code === 429) {
@@ -229,7 +229,7 @@ function hashIP(ip) {
 	if (!ip || typeof ip !== 'string') {
 		return 'unknown';
 	}
-	
+
 	// Use SHA-256 with server secret as salt for one-way hashing
 	// Same IP always produces same hash (for quota tracking)
 	// Cannot reverse-engineer original IP from hash
@@ -310,14 +310,14 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_files (fid INTEGER PRIMARY KEY AUTOI
 		logError("Failed to create uploaded_files table:", err);
 		process.exit(1);
 	}
-	
+
 	// Create indices for frequently queried columns
 	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_files_collectionID ON uploaded_files(collectionID)", function(idxErr) {
 		if (idxErr) {
 			logError("Failed to create collectionID index:", idxErr);
 		}
 	});
-	
+
 	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_files_remote_ip_timestamp ON uploaded_files(remote_ip, timestamp)", function(idxErr2) {
 		if (idxErr2) {
 			logError("Failed to create remote_ip+timestamp index:", idxErr2);
@@ -329,7 +329,7 @@ db.run("CREATE TABLE IF NOT EXISTS uploaded_chunks (cid INTEGER PRIMARY KEY AUTO
 		logError("Failed to create uploaded_chunks table:", err);
 		process.exit(1);
 	}
-	
+
 	// Create index on uuid for faster chunk lookups during merge
 	db.run("CREATE INDEX IF NOT EXISTS idx_uploaded_chunks_uuid ON uploaded_chunks(uuid)", function(idxErr) {
 		if (idxErr) {
@@ -406,32 +406,32 @@ function cleanupOldFiles() {
 	if (!config.file_retention_days || config.file_retention_days <= 0) {
 		return; // Retention disabled, keep files forever
 	}
-	
+
 	const retentionDays = config.file_retention_days;
 	log("Running cleanup for files older than", retentionDays, "days");
-	
+
 	// Query files older than retention period
 	const query = "SELECT sha, fileName FROM uploaded_files WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
-	
+
 	db.all(query, [], function(err, rows) {
 		if (err) {
 			logError("Error querying old files:", err);
 			return;
 		}
-		
+
 		if (!rows || rows.length === 0) {
 			log("No old files to clean up");
 			return;
 		}
-		
+
 		log("Found", rows.length, "old files to delete");
-		
+
 		var deletedFiles = 0;
 		var deletedRecords = 0;
-		
+
 		rows.forEach(function(row) {
 			const filePath = config.upload_dir + '/' + row.sha;
-			
+
 			// Delete file from disk
 			fsPromises.unlink(filePath).then(function() {
 				deletedFiles++;
@@ -442,7 +442,7 @@ function cleanupOldFiles() {
 				}
 			});
 		});
-		
+
 		// Delete records from database
 		const deleteQuery = "DELETE FROM uploaded_files WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
 		db.run(deleteQuery, function(dbErr) {
@@ -531,7 +531,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 				audit('LOGIN_FAILURE', req.ip, req.body.username, { reason: info?.message || 'Invalid credentials' }, 'FAILURE');
 				return res.redirect('/login');
 			}
-			
+
 			// Regenerate session to prevent session fixation attacks
 			req.session.regenerate(function(regenerateErr) {
 				if (regenerateErr) {
@@ -539,7 +539,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 					audit('LOGIN_ERROR', req.ip, user, { error: 'Session regeneration failed' }, 'FAILURE');
 					return next(regenerateErr);
 				}
-				
+
 				req.logIn(user, function(err) {
 					if (err) {
 						logError("Login session error:", err);
@@ -951,32 +951,32 @@ app.post('/merge/',
 
 		result_file.end(async function() {
 			const finalFilePath = config.upload_dir+'/'+fileName;
-			
+
 			// Verify file integrity using checksum if provided
 			if (clientChecksum) {
 				try {
 					console.log("Verifying file checksum...");
 					const fileBuffer = await fsPromises.readFile(finalFilePath);
 					const serverChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-					
+
 					if (serverChecksum !== clientChecksum) {
 						logError("Checksum mismatch! Client:", clientChecksum, "Server:", serverChecksum);
-						
+
 						// Delete corrupted file
 						await fsPromises.unlink(finalFilePath).catch(function(unlinkErr) {
 							logError("Error deleting corrupted file:", unlinkErr);
 						});
-						
+
 						// Delete chunk files
 						for (var i = 0; i < fileList.length; i++) {
 							await fsPromises.unlink(fileList[i]).catch(function(err) {
 								logError("Error deleting chunk:", err);
 							});
 						}
-						
+
 						// Delete chunk records
 						db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid]);
-						
+
 						response.status(422).json({
 							error: "File integrity check failed - upload corrupted",
 							details: "Checksum mismatch"
@@ -990,7 +990,7 @@ app.post('/merge/',
 					return;
 				}
 			}
-			
+
 			// Validate file type using magic numbers
 			try {
 				const detectedType = await fileTypeFromFile(finalFilePath);
