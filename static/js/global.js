@@ -1,4 +1,19 @@
-var debug = true;
+// Debug mode: disabled by default (production), enable via ?debug=1 or localStorage
+var debug = (function() {
+    try {
+        return (window.location.search.indexOf('debug=1') !== -1) || 
+               (localStorage.getItem('debug') === 'true');
+    } catch (e) {
+        return false;
+    }
+})();
+
+// Debug logging helper - only logs when debug mode enabled
+var debugLog = function() {
+    if (debug) {
+        console.log.apply(console, arguments);
+    }
+};
 
 var guid = (function () {
     function s4() {
@@ -74,12 +89,12 @@ function relativeTime(unixTimestamp) {
             }
             
             if (incompleteUploads.length > 0) {
-                console.log("Found", incompleteUploads.length, "incomplete uploads");
+                debugLog("Found", incompleteUploads.length, "incomplete uploads");
                 // Note: Full resume implementation would show UI to let user resume
                 // For now, just log (can be extended in future)
             }
         } catch (e) {
-            console.warn("Failed to check incomplete uploads:", e);
+            debugLog("Failed to check incomplete uploads:", e);
         }
     }
     
@@ -88,15 +103,15 @@ function relativeTime(unixTimestamp) {
 
     // Modern clipboard API function
     var copyToClipboard = function(text, buttonElement) {
-        console.log('Attempting to copy:', text);
-        console.log('Secure context:', window.isSecureContext);
-        console.log('Clipboard API available:', !!navigator.clipboard);
+        debugLog('Attempting to copy:', text);
+        debugLog('Secure context:', window.isSecureContext);
+        debugLog('Clipboard API available:', !!navigator.clipboard);
 
         if (navigator.clipboard && window.isSecureContext) {
-            console.log('Using modern Clipboard API');
+            debugLog('Using modern Clipboard API');
             // Use modern Clipboard API
             navigator.clipboard.writeText(text).then(function() {
-                console.log('Clipboard API copy successful');
+                debugLog('Clipboard API copy successful');
                 buttonElement.value = 'copied';
                 buttonElement.disabled = true;
                 setTimeout(function() {
@@ -105,24 +120,24 @@ function relativeTime(unixTimestamp) {
                 }, 2000);
             }).catch(function(err) {
                 console.error('Clipboard API failed:', err);
-                console.log('Falling back to execCommand method');
+                debugLog('Falling back to execCommand method');
                 fallbackCopyTextToClipboard(text, buttonElement);
             });
         } else {
             if (!window.isSecureContext) {
-                console.warn('Not in secure context (HTTPS required for Clipboard API)');
+                debugLog('Not in secure context (HTTPS required for Clipboard API)');
             }
             if (!navigator.clipboard) {
-                console.warn('Clipboard API not available');
+                debugLog('Clipboard API not available');
             }
-            console.log('Using fallback method');
+            debugLog('Using fallback method');
             fallbackCopyTextToClipboard(text, buttonElement);
         }
     };
 
     // Fallback copy function for older browsers
     var fallbackCopyTextToClipboard = function(text, buttonElement) {
-        console.log('Using fallback clipboard method');
+        debugLog('Using fallback clipboard method');
         var textArea = document.createElement("textarea");
         textArea.value = text;
 
@@ -142,12 +157,12 @@ function relativeTime(unixTimestamp) {
         try {
             textArea.setSelectionRange(0, 99999);
         } catch (e) {
-            console.log('setSelectionRange not supported, using select()');
+            debugLog('setSelectionRange not supported, using select()');
         }
 
         try {
             var successful = document.execCommand('copy');
-            console.log('Fallback copy result:', successful);
+            debugLog('Fallback copy result:', successful);
             if (successful) {
                 buttonElement.value = 'copied';
                 buttonElement.disabled = true;
@@ -330,8 +345,8 @@ function relativeTime(unixTimestamp) {
                     }
                 }
             })
-            .catch(function() {
-                console.log('Failed to load quota info');
+            .catch(function(err) {
+                debugLog('Failed to load quota info:', err);
             });
     }
 

@@ -1,3 +1,11 @@
+// Debug logging helper for web worker
+var debugLog = function() {
+    // Workers don't have access to URL params, so just check if we should log
+    // In production builds, this could be replaced with a no-op function
+    // For now, log critical messages only (console.error stays)
+    // console.log statements wrapped in debugLog will be silent by default
+};
+
 var guid = (function () {
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000)
@@ -66,7 +74,7 @@ function encode64 (input) {
 function uploadChunk (chunk, chunkIndex) {
     // Abort any previous XHR for this chunk (shouldn't happen in sequential mode, but safety check)
     if (self.activeXHRs[chunkIndex]) {
-        console.log("Aborting previous XHR for chunk", chunkIndex);
+        debugLog("Aborting previous XHR for chunk", chunkIndex);
         self.activeXHRs[chunkIndex].abort();
         self.activeXHRs[chunkIndex] = null;
     }
@@ -96,7 +104,7 @@ function uploadChunk (chunk, chunkIndex) {
 
         // Retry with exponential backoff
         var retryDelay = Math.min(1000 * Math.pow(2, self.chunkRetries[chunkIndex] - 1), 30000);
-        console.log("Retrying chunk", chunkIndex, "in", retryDelay, "ms");
+        debugLog("Retrying chunk", chunkIndex, "in", retryDelay, "ms");
         setTimeout(function() {
             uploadNextChunk();
         }, retryDelay);
@@ -207,7 +215,7 @@ function uploadChunk (chunk, chunkIndex) {
 
     xhr.onabort = function() {
         // XHR was aborted - don't treat as failure, just cleanup
-        console.log("XHR aborted for chunk", chunkIndex);
+        debugLog("XHR aborted for chunk", chunkIndex);
         self.activeXHRs[chunkIndex] = null;
     };
 
@@ -232,7 +240,7 @@ function uploadNextChunk() {
 
     if (allDone) {
         // All chunks uploaded - trigger merge
-        console.log("All chunks uploaded, triggering merge for", self.fileName);
+        debugLog("All chunks uploaded, triggering merge for", self.fileName);
 
         // Notify UI that merge is starting
         self.postMessage({
@@ -353,7 +361,7 @@ function uploadNextChunk() {
     // Edge case: No chunks with status 0, but not all done (chunks in status 2)
     // This means a chunk is currently uploading, so we wait
     if (!allDone && pendingCount === 0) {
-        console.log("Waiting for chunk in progress...");
+        debugLog("Waiting for chunk in progress...");
     }
 }
 
@@ -381,7 +389,7 @@ self.onmessage = function(e) {
     }
 
     // Calculate file checksum before uploading for integrity verification
-    console.log("Calculating file checksum for integrity verification...");
+    debugLog("Calculating file checksum for integrity verification...");
     self.blob.arrayBuffer().then(function(buffer) {
         return crypto.subtle.digest('SHA-256', buffer);
     }).then(function(hashBuffer) {
@@ -390,7 +398,7 @@ self.onmessage = function(e) {
         self.fileChecksum = hashArray.map(function(b) {
             return b.toString(16).padStart(2, '0');
         }).join('');
-        console.log("File checksum calculated:", self.fileChecksum);
+        debugLog("File checksum calculated:", self.fileChecksum);
         
         // Start uploading the first chunk
         uploadNextChunk();
