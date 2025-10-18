@@ -817,7 +817,7 @@ app.get('/d/:fileName/',
 
 		var mimeType = mime.getType(realFileName) || 'application/octet-stream';
 		if (mimeType && mimeType.split('/')[0] == 'image') {
-			log('viewing" ' + fileName + '"', {'Content-Type': mimeType});
+			log('viewing sha:', sha, 'type:', mimeType); // Don't log actual filename for privacy
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'view' }, 'SUCCESS');
 			response.sendFile(fileName, {
 				'headers':{
@@ -834,7 +834,7 @@ app.get('/d/:fileName/',
 			    }
 			});
 		} else {
-			log(hashIP(request.ip).substring(0, 16) + '...','downloading" ' + fileName + '"');
+			log(hashIP(request.ip).substring(0, 16) + '...','downloading sha:', sha); // Don't log actual filename for privacy
 			audit('DOWNLOAD', request.ip, null, { sha, filename: realFileName, type: 'download' }, 'SUCCESS');
 			response.download(fileName, safeFileName, {
 				headers: {
@@ -870,7 +870,7 @@ app.post('/merge/',
 	var expectedChunkCount = parseInt(request.query.chunkCount) || 0;
 	var clientChecksum    = request.query.checksum; // SHA-256 from client for integrity verification
 
-	log("Merge request:", {uuid, expectedChunkCount, originalFileName, collectionID, hasChecksum: !!clientChecksum});
+	log("Merge request:", {uuid, expectedChunkCount, collectionID, hasChecksum: !!clientChecksum}); // Omit originalFileName for privacy
 
 	var fileName;
 	try {
