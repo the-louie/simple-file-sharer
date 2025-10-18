@@ -32,9 +32,12 @@ Branch: `2025-revamp-cont`
    - Server recalculates SHA-256 after merge and compares
    - Corrupted uploads rejected with HTTP 422
 
-5. ⏳ **Issue 5.2: Missing Database Indices** - PENDING
+5. ✅ **Issue 5.2: Missing Database Indices** - Commit `2cc6764`
    - Location: `index.js:366-386`
    - Solution: Add indices on sha, collectionID, timestamp, remote_ip
+   - Created idx_uploaded_files_collectionID for collection queries
+   - Created idx_uploaded_files_remote_ip_timestamp composite for quota queries
+   - Created idx_uploaded_chunks_uuid for merge operations
 
 6. ⏳ **Issue 6.3: No Data Retention Policy** - PENDING
    - Location: Entire codebase
@@ -73,9 +76,9 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 4/10 (40%)
+- Completed: 5/10 (50%)
 - In Progress: 0/10
-- Remaining: 6/10
+- Remaining: 5/10
 
 ## Commits
 
@@ -83,4 +86,5 @@ Branch: `2025-revamp-cont`
 2. `6c4e1a9` - security: implement session regeneration after login to prevent session fixation attacks
 3. `0a0d911` - security: hash IP addresses for GDPR compliance and privacy protection
 4. `91241a2` - feat: implement SHA-256 checksum verification for file integrity
+5. `2cc6764` - perf: add database indices for frequently queried columns
 
