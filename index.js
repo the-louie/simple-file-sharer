@@ -371,7 +371,8 @@ try {
 		"max_storage_bytes": 107374182400,
 		"per_ip_daily_bytes": 1073741824,
 		"per_ip_daily_files": 100,
-		"max_file_size_bytes": 10737418240
+		"max_file_size_bytes": 10737418240,
+		"file_retention_days": 30
 	};
 }
 
@@ -478,8 +479,70 @@ function cleanupOrphanedChunks() {
 	});
 }
 
+// Cleanup function for old uploaded files (data retention policy)
+function cleanupOldFiles() {
+	// Check if file retention is configured
+	if (!config.file_retention_days || config.file_retention_days <= 0) {
+		return; // Retention disabled, keep files forever
+	}
+	
+	const retentionDays = config.file_retention_days;
+	log("Running cleanup for files older than", retentionDays, "days");
+	
+	// Query files older than retention period
+	const query = "SELECT sha, fileName FROM uploaded_files WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
+	
+	db.all(query, [], function(err, rows) {
+		if (err) {
+			logError("Error querying old files:", err);
+			return;
+		}
+		
+		if (!rows || rows.length === 0) {
+			log("No old files to clean up");
+			return;
+		}
+		
+		log("Found", rows.length, "old files to delete");
+		
+		var deletedFiles = 0;
+		var deletedRecords = 0;
+		
+		rows.forEach(function(row) {
+			const filePath = config.upload_dir + '/' + row.sha;
+			
+			// Delete file from disk
+			fsPromises.unlink(filePath).then(function() {
+				deletedFiles++;
+				log("Deleted old file:", row.fileName, "(sha:", row.sha + ")");
+			}).catch(function(unlinkErr) {
+				if (unlinkErr.code !== 'ENOENT') {
+					logError("Error deleting old file:", filePath, unlinkErr);
+				}
+			});
+		});
+		
+		// Delete records from database
+		const deleteQuery = "DELETE FROM uploaded_files WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
+		db.run(deleteQuery, function(dbErr) {
+			if (dbErr) {
+				logError("Error deleting old file records:", dbErr);
+			} else {
+				deletedRecords = this.changes;
+				log("File retention cleanup complete:", deletedRecords, "DB records deleted");
+			}
+		});
+	});
+}
+
 // Schedule periodic cleanup every hour
 setInterval(cleanupOrphanedChunks, 60 * 60 * 1000);
+setInterval(cleanupOldFiles, 60 * 60 * 1000);
+
+// Run file retention cleanup on startup
+if (config.file_retention_days && config.file_retention_days > 0) {
+	cleanupOldFiles();
+}
 
 // Rate limiting configuration
 const loginLimiter = rateLimit({
