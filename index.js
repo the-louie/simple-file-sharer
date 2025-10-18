@@ -350,6 +350,21 @@ db.run("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREME
 	}
 });
 
+// Create users table for multi-user support
+db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, is_admin INTEGER DEFAULT 0, created_at INTEGER DEFAULT (strftime('%s', 'now')), last_login INTEGER)", function(err) {
+	if (err) {
+		logError("Failed to create users table:", err);
+		process.exit(1);
+	}
+	
+	// Create index on username for faster lookups
+	db.run("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)", function(idxErr) {
+		if (idxErr) {
+			logError("Failed to create username index:", idxErr);
+		}
+	});
+});
+
 // Cleanup function for orphaned chunk files
 function cleanupOrphanedChunks() {
 	const maxAgeHours = 24; // Configurable: delete chunks older than 24 hours
@@ -649,33 +664,63 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	passport.serializeUser(function(user, done) { done(null, user); });
 	passport.deserializeUser(function(user, done) { done(null, user); });
 	passport.use(new LocalStrategy(function(username, password, done) {
-		// Verify username using constant-time comparison to prevent timing attacks
-		if (!timingSafeEqual(username, config.authdetails.username)) {
-			return done(null, false, { message: 'Invalid credentials' });
-		}
-
-		// Only accept bcrypt hashed passwords (starts with $2b$ or $2a$)
-		const isPasswordHashed = config.authdetails.password &&
-		                          (config.authdetails.password.startsWith('$2b$') ||
-		                           config.authdetails.password.startsWith('$2a$'));
-
-		if (!isPasswordHashed) {
-			// SECURITY ERROR: Plaintext password not allowed
-			logError("CRITICAL: Password in config.json is not hashed! Authentication disabled.");
-			logError("Hash your password with: node -e \"require('bcrypt').hash('your_password', 10).then(console.log)\"");
-			return done(null, false, { message: 'Authentication misconfigured - contact administrator' });
-		}
-
-		// Compare with hashed password
-		bcrypt.compare(password, config.authdetails.password, function(err, result) {
+		// Check database users first (multi-user support)
+		db.get("SELECT username, password_hash, is_admin FROM users WHERE username = ?", [username], function(err, dbUser) {
 			if (err) {
-				logError("Error comparing password:", err);
+				logError("Database error during authentication:", err);
 				return done(err);
 			}
-			if (result) {
-				return done(null, config.authdetails.username);
+			
+			if (dbUser) {
+				// User found in database - verify password
+				bcrypt.compare(password, dbUser.password_hash, function(bcryptErr, result) {
+					if (bcryptErr) {
+						logError("Error comparing password:", bcryptErr);
+						return done(bcryptErr);
+					}
+					if (result) {
+						// Update last_login timestamp
+						db.run("UPDATE users SET last_login = strftime('%s', 'now') WHERE username = ?", [username]);
+						return done(null, username);
+					} else {
+						return done(null, false, { message: 'Invalid credentials' });
+					}
+				});
 			} else {
-				return done(null, false, { message: 'Invalid credentials' });
+				// No database user found, fall back to config-based auth (backward compatibility)
+				if (!config.authdetails || !config.authdetails.username) {
+					return done(null, false, { message: 'Invalid credentials' });
+				}
+				
+				// Verify username using constant-time comparison to prevent timing attacks
+				if (!timingSafeEqual(username, config.authdetails.username)) {
+					return done(null, false, { message: 'Invalid credentials' });
+				}
+
+				// Only accept bcrypt hashed passwords (starts with $2b$ or $2a$)
+				const isPasswordHashed = config.authdetails.password &&
+				                          (config.authdetails.password.startsWith('$2b$') ||
+				                           config.authdetails.password.startsWith('$2a$'));
+
+				if (!isPasswordHashed) {
+					// SECURITY ERROR: Plaintext password not allowed
+					logError("CRITICAL: Password in config.json is not hashed! Authentication disabled.");
+					logError("Hash your password with: node -e \"require('bcrypt').hash('your_password', 10).then(console.log)\"");
+					return done(null, false, { message: 'Authentication misconfigured - contact administrator' });
+				}
+
+				// Compare with hashed password
+				bcrypt.compare(password, config.authdetails.password, function(err, result) {
+					if (err) {
+						logError("Error comparing password:", err);
+						return done(err);
+					}
+					if (result) {
+						return done(null, config.authdetails.username);
+					} else {
+						return done(null, false, { message: 'Invalid credentials' });
+					}
+				});
 			}
 		});
 	}));
