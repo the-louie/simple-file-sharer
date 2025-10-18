@@ -216,7 +216,16 @@ function relativeTime(unixTimestamp) {
         uuid = guid(),
         uuidurl = String(window.location.origin+'/?c='+uuid),
         dropzone,
-        uploadsInProgress = false;
+        uploadsInProgress = false,
+        uploadWorker = null; // Reusable worker for all uploads
+    
+    // Function to get or create upload worker
+    function getUploadWorker() {
+        if (!uploadWorker) {
+            uploadWorker = new Worker("/js/upload.webworker.js");
+        }
+        return uploadWorker;
+    }
 
     var noopHandler = function (evt) {
         evt.stopPropagation();
@@ -463,19 +472,19 @@ function relativeTime(unixTimestamp) {
 
             locked = true;
             var blob = allFiles[currentFileID];
-            var worker = new Worker("/js/upload.webworker.js");
+            var worker = getUploadWorker(); // Reuse worker instead of creating new one
             var msg = {file: blob, fileID: currentFileID, collectionID: uuid};
             worker.postMessage(msg);
             var dropzoneLabel = document.getElementById("dropzoneLabel");
             if (dropzoneLabel) dropzoneLabel.style.display = 'none';
-
+            
             worker.onmessage = function(e) {
                 var fileElement = document.querySelector(".file." + currentFileID);
                 if (!fileElement) {
-                    worker.terminate(); // Clean up worker
+                    // Don't terminate - keep worker for next file
                     return;
                 }
-
+                
                 if (e.data.action == 'SUCCESS') {
                     if(allFiles.length > 1) {
                         var collection = document.querySelector(".collection");
@@ -489,7 +498,7 @@ function relativeTime(unixTimestamp) {
                     loadQuotaInfo(); // Update quota display after successful upload
                     allFiles[currentFileID] = 1;
                     currentFileID++;
-                    worker.terminate(); // Clean up worker
+                    // Don't terminate worker - reuse for next file
                     handleNextFile();
                 } else if (e.data.action == 'FAIL') {
                     locked = false;
@@ -509,7 +518,13 @@ function relativeTime(unixTimestamp) {
 
                     allFiles[currentFileID] = 1;
                     currentFileID++;
-                    worker.terminate(); // Clean up worker
+                    
+                    // On error, terminate and recreate worker for next file to ensure clean state
+                    if (uploadWorker) {
+                        uploadWorker.terminate();
+                        uploadWorker = null;
+                    }
+                    
                     handleNextFile();
                     return false;
                 } else if (e.data.action == 'MERGING') {
