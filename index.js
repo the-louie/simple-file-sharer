@@ -229,7 +229,7 @@ function hashIP(ip) {
 	if (!ip || typeof ip !== 'string') {
 		return 'unknown';
 	}
-	
+
 	// Use SHA-256 with server secret as salt for one-way hashing
 	// Same IP always produces same hash (for quota tracking)
 	// Cannot reverse-engineer original IP from hash
@@ -257,10 +257,10 @@ function encryptChunk(data) {
 	const key = getEncryptionKey();
 	const iv = crypto.randomBytes(16); // 128-bit IV for GCM
 	const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-	
+
 	const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
 	const authTag = cipher.getAuthTag();
-	
+
 	// Return: IV (16 bytes) + authTag (16 bytes) + encrypted data
 	return Buffer.concat([iv, authTag, encrypted]);
 }
@@ -268,15 +268,15 @@ function encryptChunk(data) {
 // Decrypt chunk data when reading from disk (AES-256-GCM)
 function decryptChunk(encryptedData) {
 	const key = getEncryptionKey();
-	
+
 	// Extract: IV (16 bytes) + authTag (16 bytes) + encrypted data
 	const iv = encryptedData.slice(0, 16);
 	const authTag = encryptedData.slice(16, 32);
 	const encrypted = encryptedData.slice(32);
-	
+
 	const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
 	decipher.setAuthTag(authTag);
-	
+
 	return Buffer.concat([decipher.update(encrypted), decipher.final()]);
 }
 
@@ -396,7 +396,7 @@ db.run("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, 
 		logError("Failed to create users table:", err);
 		process.exit(1);
 	}
-	
+
 	// Create index on username for faster lookups
 	db.run("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)", function(idxErr) {
 		if (idxErr) {
@@ -524,10 +524,10 @@ function cleanupOldAuditLogs() {
 	if (!config.audit_log_retention_days || config.audit_log_retention_days <= 0) {
 		return; // Retention disabled, keep logs forever
 	}
-	
+
 	const retentionDays = config.audit_log_retention_days;
 	log("Running cleanup for audit logs older than", retentionDays, "days");
-	
+
 	// Delete logs older than retention period
 	const deleteQuery = "DELETE FROM audit_log WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
 	db.run(deleteQuery, function(err) {
@@ -566,17 +566,17 @@ const MAX_CONCURRENT_SESSIONS = 3;
 
 function isAccountLocked(username) {
 	if (!failedLogins[username]) return false;
-	
+
 	const now = Date.now();
 	if (failedLogins[username].lockUntil && now < failedLogins[username].lockUntil) {
 		return true; // Still locked
 	}
-	
+
 	// Lock expired, reset counter
 	if (failedLogins[username].lockUntil && now >= failedLogins[username].lockUntil) {
 		delete failedLogins[username];
 	}
-	
+
 	return false;
 }
 
@@ -584,15 +584,15 @@ function recordFailedLogin(username) {
 	if (!failedLogins[username]) {
 		failedLogins[username] = { count: 0, lockUntil: null };
 	}
-	
+
 	failedLogins[username].count++;
-	
+
 	if (failedLogins[username].count >= MAX_LOGIN_ATTEMPTS) {
 		failedLogins[username].lockUntil = Date.now() + LOCKOUT_DURATION_MS;
 		log("Account locked due to failed login attempts:", username);
 		return true; // Now locked
 	}
-	
+
 	return false; // Not locked yet
 }
 
@@ -604,10 +604,10 @@ function addActiveSession(username, sessionID) {
 	if (!activeSessions[username]) {
 		activeSessions[username] = [];
 	}
-	
+
 	// Add new session
 	activeSessions[username].push(sessionID);
-	
+
 	// If exceeded max concurrent sessions, remove oldest session
 	if (activeSessions[username].length > MAX_CONCURRENT_SESSIONS) {
 		const oldestSessionID = activeSessions[username].shift();
@@ -683,13 +683,13 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 	  handleValidationErrors,
 	  function(req, res, next) {
 		const username = req.body.username;
-		
+
 		// Check if account is locked
 		if (isAccountLocked(username)) {
 			audit('LOGIN_LOCKED', req.ip, username, { reason: 'Account temporarily locked' }, 'FAILURE');
 			return res.status(429).send('Account temporarily locked due to too many failed attempts. Please try again later.');
 		}
-		
+
 		passport.authenticate('local', function(err, user, info) {
 			if (err) {
 				logError("Login error:", err);
@@ -699,16 +699,16 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 			if (!user) {
 				// Record failed login and check if should lock account
 				const nowLocked = recordFailedLogin(username);
-				audit('LOGIN_FAILURE', req.ip, username, { 
+				audit('LOGIN_FAILURE', req.ip, username, {
 					reason: info?.message || 'Invalid credentials',
 					locked: nowLocked
 				}, 'FAILURE');
 				return res.redirect('/login');
 			}
-			
+
 			// Successful login - reset failed login counter
 			resetFailedLogins(username);
-			
+
 			// Regenerate session to prevent session fixation attacks
 			req.session.regenerate(function(regenerateErr) {
 				if (regenerateErr) {
@@ -716,17 +716,17 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 					audit('LOGIN_ERROR', req.ip, user, { error: 'Session regeneration failed' }, 'FAILURE');
 					return next(regenerateErr);
 				}
-				
+
 				req.logIn(user, function(err) {
 					if (err) {
 						logError("Login session error:", err);
 						audit('LOGIN_ERROR', req.ip, user, { error: err.message }, 'FAILURE');
 						return next(err);
 					}
-					
+
 					// Track session for concurrent session limits
 					addActiveSession(user, req.sessionID);
-					
+
 					audit('LOGIN_SUCCESS', req.ip, user, {}, 'SUCCESS');
 					return res.redirect('/');
 				});
@@ -737,7 +737,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 
 	passport.serializeUser(function(user, done) { done(null, user); });
 	passport.deserializeUser(function(user, done) { done(null, user); });
-	
+
 	// Handle session destruction for concurrent session tracking
 	app.use(function(req, res, next) {
 		if (req.session) {
@@ -758,7 +758,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 				logError("Database error during authentication:", err);
 				return done(err);
 			}
-			
+
 			if (dbUser) {
 				// User found in database - verify password
 				bcrypt.compare(password, dbUser.password_hash, function(bcryptErr, result) {
@@ -779,7 +779,7 @@ if (config.authdetails && config.authdetails.username && config.authdetails.pass
 				if (!config.authdetails || !config.authdetails.username) {
 					return done(null, false, { message: 'Invalid credentials' });
 				}
-				
+
 				// Verify username using constant-time comparison to prevent timing attacks
 				if (!timingSafeEqual(username, config.authdetails.username)) {
 					return done(null, false, { message: 'Invalid credentials' });
@@ -842,7 +842,7 @@ const safeRandomId = async (length, retryCount) => new Promise((resolve, _reject
 		length = 4; // Start with 4 chars for better distribution (64^4 = 16M combinations)
 	else if (length > 64)
 		return resolve(false); // Max length exceeded
-	
+
 	if (retryCount === undefined)
 		retryCount = 0;
 	else if (retryCount > 10) {
@@ -967,7 +967,7 @@ app.post('/upload/',
 
 		// Encrypt chunk before saving to disk (at-rest encryption)
 			var encryptedChunk = encryptChunk(fileBuffer);
-			
+
 			// save encrypted chunk to file
 			var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
 			chunkFile.write(encryptedChunk);
@@ -1373,14 +1373,14 @@ app.get('/c/:collectionID',
 				const now = Math.floor(Date.now() / 1000);
 				const expirationSeconds = config.collection_expiration_days * 24 * 60 * 60;
 				const oldestTimestamp = Math.min.apply(null, rows.map(function(r) { return r.timestamp; }));
-				
+
 				if (now - oldestTimestamp > expirationSeconds) {
 					log("Collection expired:", collectionID, "oldest file:", oldestTimestamp);
 					response.status(410).json({ error: "Collection has expired" }); // 410 Gone
 					return;
 				}
 			}
-			
+
 			var files = rows.map(function(row) {
 				return {fileName:row.fileName,sha:row.sha,fileSize:row.fileSize,timestamp:row.timestamp};
 			});

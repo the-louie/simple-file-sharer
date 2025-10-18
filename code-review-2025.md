@@ -125,7 +125,7 @@ Total code improvements:
 4. `91241a2` - feat: SHA-256 checksum verification
 5. `2cc6764` - perf: database indices
 6. `5f6404c` - feat: file retention policy
-7. `8f8b694` - perf: parallel quota queries  
+7. `8f8b694` - perf: parallel quota queries
 8. `d46c7f4` - perf: reusable web worker
 9. `21040b4` - feat: upload progress persistence
 10. `3b158ba` - perf: conditional debug logging
