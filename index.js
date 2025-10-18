@@ -828,6 +828,7 @@ app.post('/merge/',
 	query('chunkCount').isInt({ min: 1 }).withMessage('chunkCount must be a positive integer'),
 	query('uuid').isUUID(4).withMessage('uuid must be a valid UUID v4'),
 	query('collectionID').optional().isUUID(4).withMessage('collectionID must be a valid UUID v4'),
+	query('checksum').optional().matches(/^[a-f0-9]{64}$/).withMessage('checksum must be a valid SHA-256 hex string'),
 	handleValidationErrors,
 	async function (request, response) {
 	var uuid              = request.query.uuid;
@@ -836,8 +837,9 @@ app.post('/merge/',
 	var originalFileName  = request.query.name;
 	var collectionID      = request.query.collectionID;
 	var expectedChunkCount = parseInt(request.query.chunkCount) || 0;
+	var clientChecksum    = request.query.checksum; // SHA-256 from client for integrity verification
 
-	log("Merge request:", {uuid, expectedChunkCount, originalFileName, collectionID});
+	log("Merge request:", {uuid, expectedChunkCount, originalFileName, collectionID, hasChecksum: !!clientChecksum});
 
 	var fileName;
 	try {
@@ -944,8 +946,48 @@ app.post('/merge/',
 		}
 
 		result_file.end(async function() {
-			// Validate file type using magic numbers
 			const finalFilePath = config.upload_dir+'/'+fileName;
+			
+			// Verify file integrity using checksum if provided
+			if (clientChecksum) {
+				try {
+					console.log("Verifying file checksum...");
+					const fileBuffer = await fsPromises.readFile(finalFilePath);
+					const serverChecksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+					
+					if (serverChecksum !== clientChecksum) {
+						logError("Checksum mismatch! Client:", clientChecksum, "Server:", serverChecksum);
+						
+						// Delete corrupted file
+						await fsPromises.unlink(finalFilePath).catch(function(unlinkErr) {
+							logError("Error deleting corrupted file:", unlinkErr);
+						});
+						
+						// Delete chunk files
+						for (var i = 0; i < fileList.length; i++) {
+							await fsPromises.unlink(fileList[i]).catch(function(err) {
+								logError("Error deleting chunk:", err);
+							});
+						}
+						
+						// Delete chunk records
+						db.run('DELETE FROM uploaded_chunks WHERE uuid = ?', [uuid]);
+						
+						response.status(422).json({
+							error: "File integrity check failed - upload corrupted",
+							details: "Checksum mismatch"
+						});
+						return;
+					}
+					console.log("Checksum verified successfully:", serverChecksum);
+				} catch (checksumErr) {
+					logError("Error verifying checksum:", checksumErr);
+					response.status(500).json({ error: "Error verifying file integrity" });
+					return;
+				}
+			}
+			
+			// Validate file type using magic numbers
 			try {
 				const detectedType = await fileTypeFromFile(finalFilePath);
 				if (detectedType) {

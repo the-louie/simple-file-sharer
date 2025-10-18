@@ -222,7 +222,12 @@ function uploadNextChunk() {
         });
 
         var xhrMerge = new XMLHttpRequest();
-        xhrMerge.open("POST", "/merge?name=" + self.fileName + "&chunkCount=" + self.chunkCount + "&uuid=" + self.uuid + "&collectionID=" + self.collectionID);
+        var mergeUrl = "/merge?name=" + encodeURIComponent(self.fileName) + 
+                       "&chunkCount=" + self.chunkCount + 
+                       "&uuid=" + self.uuid + 
+                       "&collectionID=" + self.collectionID +
+                       "&checksum=" + self.fileChecksum;
+        xhrMerge.open("POST", mergeUrl);
         xhrMerge.onreadystatechange = function (e) {
             if (xhrMerge.readyState == 4) {
                 if (xhrMerge.status != 200) {
@@ -238,6 +243,8 @@ function uploadNextChunk() {
                                 errorMsg = "This file type is not allowed. Please upload a different file.";
                             } else if (xhrMerge.status === 413) {
                                 errorMsg = "File is too large. Maximum size allowed is " + humanFileSize(errorResponse.maxSize || 0, true) + ".";
+                            } else if (xhrMerge.status === 422) {
+                                errorMsg = "File upload corrupted during transfer. Please try again.";
                             } else if (xhrMerge.status === 429) {
                                 errorMsg = "Upload limit reached. Please try again later.";
                             } else if (xhrMerge.status === 507) {
@@ -254,6 +261,8 @@ function uploadNextChunk() {
                             errorMsg = "This file type is not allowed.";
                         } else if (xhrMerge.status === 413) {
                             errorMsg = "File is too large.";
+                        } else if (xhrMerge.status === 422) {
+                            errorMsg = "File corrupted during upload. Please try again.";
                         } else if (xhrMerge.status === 429) {
                             errorMsg = "Upload limit reached. Try again later.";
                         } else if (xhrMerge.status === 507) {
@@ -321,7 +330,7 @@ function uploadNextChunk() {
 }
 
 self.onmessage = function(e) {
-    self.BYTES_PER_CHUNK = 1024 * 1024 * 1; // 1MB chunks
+    self.BYTES_PER_CHUNK = 1024 * 1024 * 2; // 2MB chunks
     self.blob = e.data.file;
 
     self.chunksSent = 0;
@@ -334,6 +343,7 @@ self.onmessage = function(e) {
     self.chunkRetries = Array(self.chunkCount); // Track retry count per chunk
     self.activeXHRs = Array(self.chunkCount); // Track active XHR per chunk
     self.MAX_RETRIES = 10;
+    self.fileChecksum = null; // Will store SHA-256 checksum of file
 
     // Initialize all chunks to 0 (not started) and retries to 0
     for (var i = 0; i < self.chunkCount; i++) {
@@ -342,6 +352,26 @@ self.onmessage = function(e) {
         self.activeXHRs[i] = null;
     }
 
-    // Start uploading the first chunk
-    uploadNextChunk();
+    // Calculate file checksum before uploading for integrity verification
+    console.log("Calculating file checksum for integrity verification...");
+    self.blob.arrayBuffer().then(function(buffer) {
+        return crypto.subtle.digest('SHA-256', buffer);
+    }).then(function(hashBuffer) {
+        // Convert hash to hex string
+        var hashArray = Array.from(new Uint8Array(hashBuffer));
+        self.fileChecksum = hashArray.map(function(b) {
+            return b.toString(16).padStart(2, '0');
+        }).join('');
+        console.log("File checksum calculated:", self.fileChecksum);
+        
+        // Start uploading the first chunk
+        uploadNextChunk();
+    }).catch(function(err) {
+        console.error("Failed to calculate file checksum:", err);
+        self.postMessage({
+            action:"FAIL",
+            fileID:self.currentFileID,
+            error: "Failed to calculate file checksum. Please try again."
+        });
+    });
 };
