@@ -25,11 +25,13 @@
 	"per_ip_daily_files": 100,
 	"max_file_size_bytes": 10737418240,
 	"file_retention_days": 30,
+	"audit_log_retention_days": 90,
 	"session_timeout_hours": 24,
 	"_comment_secret": "Set SESSION_SECRET environment variable - do not store secrets in this file!",
 	"_comment_password": "Hash password with: node -e \"require('bcrypt').hash('yourpassword', 10).then(console.log)\"",
 	"_comment_blocked_types": "Blocked MIME types based on magic numbers. Default blocks executables and scripts.",
 	"_comment_quotas": "Quotas: max_storage_bytes=100GB global, per_ip_daily_bytes=1GB/day, per_ip_daily_files=100/day, max_file_size_bytes=10GB/file. Set to 0 to disable.",
 	"_comment_retention": "file_retention_days: Automatically delete files older than N days. Set to 0 to keep files forever (default: 30 days).",
+	"_comment_audit": "audit_log_retention_days: Automatically delete audit logs older than N days. Set to 0 to keep logs forever (default: 90 days).",
 	"_comment_session": "session_timeout_hours: How long sessions remain valid. Default: 24 hours."
 }

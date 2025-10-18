@@ -294,6 +294,7 @@ try {
 		"per_ip_daily_files": 100,
 		"max_file_size_bytes": 10737418240,
 		"file_retention_days": 30,
+		"audit_log_retention_days": 90,
 		"session_timeout_hours": 24
 	};
 }
@@ -461,10 +462,42 @@ function cleanupOldFiles() {
 setInterval(cleanupOrphanedChunks, 60 * 60 * 1000);
 setInterval(cleanupOldFiles, 60 * 60 * 1000);
 
+// Cleanup function for old audit logs (privacy/GDPR compliance)
+function cleanupOldAuditLogs() {
+	// Check if audit log retention is configured
+	if (!config.audit_log_retention_days || config.audit_log_retention_days <= 0) {
+		return; // Retention disabled, keep logs forever
+	}
+	
+	const retentionDays = config.audit_log_retention_days;
+	log("Running cleanup for audit logs older than", retentionDays, "days");
+	
+	// Delete logs older than retention period
+	const deleteQuery = "DELETE FROM audit_log WHERE timestamp < strftime('%s', 'now', '-" + retentionDays + " days')";
+	db.run(deleteQuery, function(err) {
+		if (err) {
+			logError("Error deleting old audit logs:", err);
+		} else {
+			const deletedRecords = this.changes;
+			if (deletedRecords > 0) {
+				log("Audit log cleanup complete:", deletedRecords, "records deleted");
+			}
+		}
+	});
+}
+
 // Run file retention cleanup on startup
 if (config.file_retention_days && config.file_retention_days > 0) {
 	cleanupOldFiles();
 }
+
+// Run audit log cleanup on startup
+if (config.audit_log_retention_days && config.audit_log_retention_days > 0) {
+	cleanupOldAuditLogs();
+}
+
+// Schedule periodic audit log cleanup every hour
+setInterval(cleanupOldAuditLogs, 60 * 60 * 1000);
 
 // Rate limiting configuration
 const loginLimiter = rateLimit({
@@ -724,11 +757,11 @@ app.post('/upload/',
 				response.status(500).json({ error: "Database error" });
 				return;
 			}
-			stmt.finalize();
+		stmt.finalize();
 
-			// save chunk to file
+		// save chunk to file
 			var chunkFile = fs.createWriteStream(config.upload_dir+'/pending/'+fileName);
-			chunkFile.write(fileBuffer);
+		chunkFile.write(fileBuffer);
 			chunkFile.end(function(err) {
 				if (err) {
 					logError("File write error:", err);
@@ -737,8 +770,8 @@ app.post('/upload/',
 				}
 
 				response.writeHead(200, {'Content-Type': 'application/json'});
-				response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
-				response.end();
+		response.write(JSON.stringify({'fileName':fileName, 'chunk':chunkID}));
+		response.end();
 			});
 		});
 
@@ -841,9 +874,9 @@ app.post('/merge/',
 
 	var fileName;
 	try {
-		if (config.randomId)
-			fileName 		  = await safeRandomId();
-		else
+	if (config.randomId)
+		fileName 		  = await safeRandomId();
+	else
 			fileName  	      = await hashId(originalFileName, remoteAddress);
 	} catch (err) {
 		logError("Error generating filename:", err);
@@ -893,8 +926,8 @@ app.post('/merge/',
 
 			try {
 				var chunkData = await fsPromises.readFile(chunkPath);
-				result_file.write(chunkData);
-				fileSize += chunkData.length;
+			result_file.write(chunkData);
+			fileSize += chunkData.length;
 				fileList.push(chunkPath);
 			} catch (fileErr) {
 				logError("Error reading chunk file:", fileErr);
@@ -1085,8 +1118,8 @@ app.post('/merge/',
 						}
 
 							// Only delete chunk files AFTER successful DB commit
-							fileList.forEach(function(file) {
-								fs.unlink(file, function (err) {
+			fileList.forEach(function(file) {
+				fs.unlink(file, function (err) {
 									if (err) logError("Error deleting chunk file:", err);
 								});
 							});
