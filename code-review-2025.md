@@ -11,9 +11,10 @@ Branch: `2025-revamp-cont`
    - Replaced all `fs.unlinkSync()` with async `fsPromises.unlink()`
    - Server no longer blocks during large file merges
 
-2. ⏳ **Issue 4.1: No Session Rotation After Login** - PENDING
+2. ✅ **Issue 4.1: No Session Rotation After Login** - Commit `6c4e1a9`
    - Location: `index.js:510-518`
    - Solution: Call `req.session.regenerate()` after login
+   - Implemented session regeneration before `req.logIn()` to prevent session fixation attacks
 
 3. ⏳ **Issue 6.1: IP Addresses Stored Without Hashing** - PENDING
    - Location: `index.js:983`
@@ -66,11 +67,12 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 1/10 (10%)
+- Completed: 2/10 (20%)
 - In Progress: 0/10
-- Remaining: 9/10
+- Remaining: 8/10
 
 ## Commits
 
 1. `b6f8e8c` - perf: replace synchronous file operations with async to prevent event loop blocking
+2. `6c4e1a9` - security: implement session regeneration after login to prevent session fixation attacks
 
