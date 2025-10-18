@@ -1,5 +1,6 @@
 
 import fs from "fs";
+import fsPromises from "fs/promises";
 import mime from "mime";
 import crypto from "crypto";
 import _ from "lodash";
@@ -834,7 +835,7 @@ app.post('/merge/',
 	var result_file = fs.createWriteStream(config.upload_dir+'/'+fileName);
 	var fileList = [];
 	var fileSize = 0;
-	db.all(query, [uuid], function(err, rows) {
+	db.all(query, [uuid], async function(err, rows) {
 		if (err) {
 			logError("Database query error:", err);
 			response.status(500).json({ error: "Database query error" });
@@ -854,16 +855,18 @@ app.post('/merge/',
 			return;
 		}
 
+		// Read and merge chunks asynchronously to avoid blocking event loop
 		var hadError = false;
 		for (var i = 0; i < rows.length; i++) {
 			var row = rows[i];
 			var chunkFileName = row.filename;
+			var chunkPath = config.upload_dir+'/pending/'+chunkFileName;
 
 			try {
-				var chunkData = fs.readFileSync(config.upload_dir+'/pending/'+chunkFileName);
+				var chunkData = await fsPromises.readFile(chunkPath);
 				result_file.write(chunkData);
 				fileSize += chunkData.length;
-				fileList.push(config.upload_dir+'/pending/'+chunkFileName);
+				fileList.push(chunkPath);
 			} catch (fileErr) {
 				logError("Error reading chunk file:", fileErr);
 				result_file.end(); // Close the stream
@@ -883,20 +886,16 @@ app.post('/merge/',
 				logError("File size exceeds limit:", fileSize, ">", config.max_file_size_bytes);
 				result_file.end(); // Close the stream
 
-				// Delete the incomplete merged file
-				try {
-					fs.unlinkSync(config.upload_dir+'/'+fileName);
-				} catch (unlinkErr) {
+				// Delete the incomplete merged file (async, non-blocking)
+				fsPromises.unlink(config.upload_dir+'/'+fileName).catch(function(unlinkErr) {
 					logError("Error deleting oversized file:", unlinkErr);
-				}
+				});
 
-				// Delete chunk files
+				// Delete chunk files (async, non-blocking)
 				fileList.forEach(function(chunkPath) {
-					try {
-						fs.unlinkSync(chunkPath);
-					} catch (chunkUnlinkErr) {
+					fsPromises.unlink(chunkPath).catch(function(chunkUnlinkErr) {
 						logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
-					}
+					});
 				});
 
 				// Delete chunk records from database
@@ -933,20 +932,16 @@ app.post('/merge/',
 							uuid
 						}, 'BLOCKED');
 
-						// Delete the merged file
-						try {
-							fs.unlinkSync(finalFilePath);
-						} catch (unlinkErr) {
+						// Delete the merged file (async, non-blocking)
+						fsPromises.unlink(finalFilePath).catch(function(unlinkErr) {
 							logError("Error deleting blocked file:", unlinkErr);
-						}
+						});
 
-						// Delete chunk files
+						// Delete chunk files (async, non-blocking)
 						fileList.forEach(function(chunkPath) {
-							try {
-								fs.unlinkSync(chunkPath);
-							} catch (chunkUnlinkErr) {
+							fsPromises.unlink(chunkPath).catch(function(chunkUnlinkErr) {
 								logError("Error deleting chunk file:", chunkPath, chunkUnlinkErr);
-							}
+							});
 						});
 
 						// Delete chunk records from database
