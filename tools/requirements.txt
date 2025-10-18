@@ -1,0 +1,6 @@
+# Python dependencies for Simple File Sharer upload tools
+# Install: pip3 install -r requirements.txt
+
+# HTTP client library for API requests
+requests>=2.31.0
+
