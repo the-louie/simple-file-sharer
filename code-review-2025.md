@@ -16,9 +16,12 @@ Branch: `2025-revamp-cont`
    - Solution: Call `req.session.regenerate()` after login
    - Implemented session regeneration before `req.logIn()` to prevent session fixation attacks
 
-3. ⏳ **Issue 6.1: IP Addresses Stored Without Hashing** - PENDING
+3. ✅ **Issue 6.1: IP Addresses Stored Without Hashing** - Commit `0a0d911`
    - Location: `index.js:983`
    - Solution: Hash IPs with salt before storage
+   - Implemented `hashIP()` function using SHA-256 with server secret
+   - All IPs hashed before database storage and in logs
+   - GDPR compliant while preserving quota functionality
 
 ### P1 - High Priority (3 issues)
 
@@ -67,12 +70,13 @@ Branch: `2025-revamp-cont`
 
 ## Progress
 
-- Completed: 2/10 (20%)
+- Completed: 3/10 (30%) - All P0 Critical Security Issues Complete!
 - In Progress: 0/10
-- Remaining: 8/10
+- Remaining: 7/10
 
 ## Commits
 
 1. `b6f8e8c` - perf: replace synchronous file operations with async to prevent event loop blocking
 2. `6c4e1a9` - security: implement session regeneration after login to prevent session fixation attacks
+3. `0a0d911` - security: hash IP addresses for GDPR compliance and privacy protection
 
