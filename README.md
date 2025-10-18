@@ -1,3 +1,6 @@
+# Now known as File Drop
+See https://github.com/the-louie/file-drop
+
 # Simple File Sharer
 
 A secure, modern file sharing application with chunked uploads, user authentication, and enterprise-grade features. Built with Node.js and vanilla JavaScript.
